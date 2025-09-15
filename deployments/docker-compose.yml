@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017
+      - DATABASE_NAME=whisko
+      - PORT=8080
+    depends_on:
+      - mongo
+    networks:
+      - whisko-network
+
+  mongo:
+    image: mongo:5.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - whisko-network
+
+volumes:
+  mongo_data:
+
+networks:
+  whisko-network:
