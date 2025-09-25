@@ -67,6 +67,11 @@ func (mc *MongoClient) GetDatabase() *mongo.Database {
 	return mc.database
 }
 
+// GetClient returns the underlying MongoDB client
+func (mc *MongoClient) GetClient() *mongo.Client {
+	return mc.client
+}
+
 // GetCollection returns a MongoDB collection
 func (mc *MongoClient) GetCollection(name string) *mongo.Collection {
 	return mc.database.Collection(name)

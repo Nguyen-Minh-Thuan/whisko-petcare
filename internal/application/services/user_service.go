@@ -9,11 +9,11 @@ import (
 
 // UserService orchestrates user operations
 type UserService struct {
-	// Command handlers
-	createUserHandler        *command.CreateUserHandler
-	updateUserProfileHandler *command.UpdateUserProfileHandler
-	updateUserContactHandler *command.UpdateUserContactHandler
-	deleteUserHandler        *command.DeleteUserHandler
+	// Command handlers (using Unit of Work)
+	createUserHandler        *command.CreateUserWithUoWHandler
+	updateUserProfileHandler *command.UpdateUserProfileWithUoWHandler
+	updateUserContactHandler *command.UpdateUserContactWithUoWHandler
+	deleteUserHandler        *command.DeleteUserWithUoWHandler
 
 	// Query handlers
 	getUserHandler     *query.GetUserHandler
@@ -22,10 +22,10 @@ type UserService struct {
 }
 
 func NewUserService(
-	createUserHandler *command.CreateUserHandler,
-	updateUserProfileHandler *command.UpdateUserProfileHandler,
-	updateUserContactHandler *command.UpdateUserContactHandler,
-	deleteUserHandler *command.DeleteUserHandler,
+	createUserHandler *command.CreateUserWithUoWHandler,
+	updateUserProfileHandler *command.UpdateUserProfileWithUoWHandler,
+	updateUserContactHandler *command.UpdateUserContactWithUoWHandler,
+	deleteUserHandler *command.DeleteUserWithUoWHandler,
 	getUserHandler *query.GetUserHandler,
 	listUsersHandler *query.ListUsersHandler,
 	searchUsersHandler *query.SearchUsersHandler,
@@ -43,19 +43,19 @@ func NewUserService(
 
 // Command operations
 func (s *UserService) CreateUser(ctx context.Context, cmd command.CreateUser) error {
-	return s.createUserHandler.Handle(ctx, cmd)
+	return s.createUserHandler.Handle(ctx, &cmd)
 }
 
 func (s *UserService) UpdateUserProfile(ctx context.Context, cmd command.UpdateUserProfile) error {
-	return s.updateUserProfileHandler.Handle(ctx, cmd)
+	return s.updateUserProfileHandler.Handle(ctx, &cmd)
 }
 
 func (s *UserService) UpdateUserContact(ctx context.Context, cmd command.UpdateUserContact) error {
-	return s.updateUserContactHandler.Handle(ctx, cmd)
+	return s.updateUserContactHandler.Handle(ctx, &cmd)
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, cmd command.DeleteUser) error {
-	return s.deleteUserHandler.Handle(ctx, cmd)
+	return s.deleteUserHandler.Handle(ctx, &cmd)
 }
 
 // Query operations

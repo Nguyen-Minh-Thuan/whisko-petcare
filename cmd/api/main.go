@@ -14,7 +14,6 @@ import (
 	"whisko-petcare/internal/application/services"
 	"whisko-petcare/internal/domain/event"
 	"whisko-petcare/internal/infrastructure/bus"
-	"whisko-petcare/internal/infrastructure/eventstore"
 	httpHandler "whisko-petcare/internal/infrastructure/http"
 	"whisko-petcare/internal/infrastructure/mongo"
 	"whisko-petcare/internal/infrastructure/projection"
@@ -56,9 +55,12 @@ func main() {
 	log.Println("✅ Connected to MongoDB successfully")
 
 	// Initialize infrastructure
-	eventStore := eventstore.NewMongoEventStore()
+	database := mongoClient.GetDatabase()
 	eventBus := bus.NewInMemoryEventBus()
-	userProjection := projection.NewInMemoryUserProjection()
+	userProjection := projection.NewMongoUserProjection(database)
+
+	// Initialize Unit of Work factory
+	uowFactory := mongo.NewMongoUnitOfWorkFactory(mongoClient.GetClient(), database)
 
 	// Subscribe projection to events
 	eventBus.Subscribe("UserCreated", bus.EventHandlerFunc(
@@ -81,11 +83,11 @@ func main() {
 			return userProjection.HandleUserDeleted(ctx, e.(*event.UserDeleted))
 		}))
 
-	// Initialize command handlers
-	createUserHandler := command.NewCreateUserHandler(eventStore, eventBus)
-	updateUserProfileHandler := command.NewUpdateUserProfileHandler(eventStore, eventBus)
-	updateUserContactHandler := command.NewUpdateUserContactHandler(eventStore, eventBus)
-	deleteUserHandler := command.NewDeleteUserHandler(eventStore, eventBus)
+	// Initialize Unit of Work command handlers
+	createUserHandler := command.NewCreateUserWithUoWHandler(uowFactory, eventBus)
+	updateUserProfileHandler := command.NewUpdateUserProfileWithUoWHandler(uowFactory, eventBus)
+	updateUserContactHandler := command.NewUpdateUserContactWithUoWHandler(uowFactory, eventBus)
+	deleteUserHandler := command.NewDeleteUserWithUoWHandler(uowFactory, eventBus)
 
 	// Initialize query handlers
 	getUserHandler := query.NewGetUserHandler(userProjection)
