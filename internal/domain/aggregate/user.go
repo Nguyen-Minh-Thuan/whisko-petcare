@@ -163,3 +163,23 @@ func (u *User) Address() string      { return u.address }
 func (u *User) Version() int         { return u.version }
 func (u *User) CreatedAt() time.Time { return u.createdAt }
 func (u *User) UpdatedAt() time.Time { return u.updatedAt }
+
+// Entity interface implementation
+func (u *User) GetID() string    { return u.id }
+func (u *User) SetID(id string)  { u.id = id }
+func (u *User) GetVersion() int  { return u.version }
+func (u *User) SetVersion(v int) { u.version = v }
+
+// AggregateRoot interface implementation
+func (u *User) MarkEventsAsCommitted() {
+	u.uncommittedEvents = nil
+}
+
+func (u *User) LoadFromHistory(events []event.DomainEvent) error {
+	for _, e := range events {
+		if err := u.applyEvent(e); err != nil {
+			return fmt.Errorf("failed to apply event %s: %w", e.EventType(), err)
+		}
+	}
+	return nil
+}
