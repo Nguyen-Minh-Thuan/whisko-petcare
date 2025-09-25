@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"whisko-petcare/internal/application/command"
 	"whisko-petcare/internal/application/query"
@@ -15,11 +16,44 @@ import (
 	"whisko-petcare/internal/infrastructure/bus"
 	"whisko-petcare/internal/infrastructure/eventstore"
 	httpHandler "whisko-petcare/internal/infrastructure/http"
+	"whisko-petcare/internal/infrastructure/mongo"
 	"whisko-petcare/internal/infrastructure/projection"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load environment variables from .env file
+	if err := godotenv.Load(); err != nil {
+		log.Println("Warning: .env file not found or could not be loaded")
+	}
+
 	log.Println("Starting Whisko Pet Care API (Event Sourcing)...")
+
+	mongoConfig := &mongo.MongoConfig{
+		URI:      getEnv("MONGO_URI", ""),
+		Database: getEnv("MONGO_DATABASE", ""),
+		Username: getEnv("MONGO_USERNAME", ""),
+		Password: getEnv("MONGO_PASSWORD", ""),
+		Timeout:  30 * time.Second,
+	}
+
+	// Initialize MongoDB client
+	mongoClient, err := mongo.NewMongoClient(mongoConfig)
+	if err != nil {
+		log.Fatalf("Failed to connect to MongoDB: %v", err)
+	}
+	defer func() {
+		if err := mongoClient.Close(); err != nil {
+			log.Printf("Error closing MongoDB connection: %v", err)
+		}
+	}()
+
+	// Test MongoDB connection
+	if err := mongoClient.Ping(); err != nil {
+		log.Fatalf("Failed to ping MongoDB: %v", err)
+	}
+	log.Println("✅ Connected to MongoDB successfully")
 
 	// Initialize infrastructure
 	eventStore := eventstore.NewMongoEventStore()
