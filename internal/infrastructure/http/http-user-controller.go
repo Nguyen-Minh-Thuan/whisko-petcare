@@ -12,6 +12,7 @@ import (
 	"whisko-petcare/internal/application/services"
 	"whisko-petcare/pkg/errors"
 	"whisko-petcare/pkg/middleware"
+	"whisko-petcare/pkg/response"
 )
 
 // HTTPUserController implements UserController for HTTP transport (Event Sourcing)
@@ -36,7 +37,7 @@ func (c *HTTPUserController) CreateUser(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		middleware.HandleError(w, errors.NewValidationError("Invalid JSON format"))
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
 		return
 	}
 
@@ -49,34 +50,34 @@ func (c *HTTPUserController) CreateUser(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := c.userService.CreateUser(r.Context(), cmd); err != nil {
-		middleware.HandleError(w, err)
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	// Use ApiResponse for success
+	responseData := map[string]interface{}{
 		"id":      cmd.UserID,
 		"message": "User created successfully",
-	})
+	}
+	response.SendCreated(w, r, responseData)
 }
 
 // GetUser handles GET /users/{id}
 func (c *HTTPUserController) GetUser(w http.ResponseWriter, r *http.Request) {
 	id := extractIDFromPath(r.URL.Path)
 	if id == "" {
-		middleware.HandleError(w, errors.NewValidationError("user ID is required"))
+		middleware.HandleError(w, r, errors.NewValidationError("user ID is required"))
 		return
 	}
 
 	userReadModel, err := c.userService.GetUser(r.Context(), query.GetUser{UserID: id})
 	if err != nil {
-		middleware.HandleError(w, err)
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	// Use ApiResponse for success
+	userData := map[string]interface{}{
 		"id":         userReadModel.ID,
 		"name":       userReadModel.Name,
 		"email":      userReadModel.Email,
@@ -85,7 +86,8 @@ func (c *HTTPUserController) GetUser(w http.ResponseWriter, r *http.Request) {
 		"version":    userReadModel.Version,
 		"created_at": userReadModel.CreatedAt,
 		"updated_at": userReadModel.UpdatedAt,
-	})
+	}
+	response.SendSuccess(w, r, userData)
 }
 
 // ListUsers handles GET /users
@@ -95,13 +97,13 @@ func (c *HTTPUserController) ListUsers(w http.ResponseWriter, r *http.Request) {
 		Offset: 0,
 	})
 	if err != nil {
-		middleware.HandleError(w, err)
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	var response []map[string]interface{}
+	var userList []map[string]interface{}
 	for _, user := range users {
-		response = append(response, map[string]interface{}{
+		userList = append(userList, map[string]interface{}{
 			"id":         user.ID,
 			"name":       user.Name,
 			"email":      user.Email,
@@ -113,15 +115,20 @@ func (c *HTTPUserController) ListUsers(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	// Use ApiResponse with metadata for pagination
+	meta := &response.Meta{
+		Page:  1,
+		Limit: 10,
+		Total: len(userList),
+	}
+	response.SendSuccessWithMeta(w, r, userList, meta)
 }
 
 // UpdateUser handles PUT /users/{id}
 func (c *HTTPUserController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	id := extractIDFromPath(r.URL.Path)
 	if id == "" {
-		middleware.HandleError(w, errors.NewValidationError("user ID is required"))
+		middleware.HandleError(w, r, errors.NewValidationError("user ID is required"))
 		return
 	}
 
@@ -133,7 +140,7 @@ func (c *HTTPUserController) UpdateUser(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		middleware.HandleError(w, errors.NewValidationError("Invalid JSON format"))
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
 		return
 	}
 
@@ -144,7 +151,7 @@ func (c *HTTPUserController) UpdateUser(w http.ResponseWriter, r *http.Request) 
 			Email:  req.Email,
 		}
 		if err := c.userService.UpdateUserProfile(r.Context(), cmd); err != nil {
-			middleware.HandleError(w, err)
+			middleware.HandleError(w, r, err)
 			return
 		}
 	}
@@ -156,29 +163,39 @@ func (c *HTTPUserController) UpdateUser(w http.ResponseWriter, r *http.Request) 
 			Address: req.Address,
 		}
 		if err := c.userService.UpdateUserContact(r.Context(), cmd); err != nil {
-			middleware.HandleError(w, err)
+			middleware.HandleError(w, r, err)
 			return
 		}
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	// Use ApiResponse for success
+	responseData := map[string]interface{}{
+		"message": "User updated successfully",
+		"user_id": id,
+	}
+	response.SendSuccess(w, r, responseData)
 }
 
 // DeleteUser handles DELETE /users/{id}
 func (c *HTTPUserController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := extractIDFromPath(r.URL.Path)
 	if id == "" {
-		middleware.HandleError(w, errors.NewValidationError("user ID is required"))
+		middleware.HandleError(w, r, errors.NewValidationError("user ID is required"))
 		return
 	}
 
 	cmd := command.DeleteUser{UserID: id}
 	if err := c.userService.DeleteUser(r.Context(), cmd); err != nil {
-		middleware.HandleError(w, err)
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	// Use ApiResponse for success
+	responseData := map[string]interface{}{
+		"message": "User deleted successfully",
+		"user_id": id,
+	}
+	response.SendSuccess(w, r, responseData)
 }
 
 func extractIDFromPath(path string) string {
