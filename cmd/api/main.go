@@ -32,8 +32,6 @@ func main() {
 	mongoConfig := &mongo.MongoConfig{
 		URI:      getEnv("MONGO_URI", ""),
 		Database: getEnv("MONGO_DATABASE", ""),
-		Username: getEnv("MONGO_USERNAME", ""),
-		Password: getEnv("MONGO_PASSWORD", ""),
 		Timeout:  30 * time.Second,
 	}
 
