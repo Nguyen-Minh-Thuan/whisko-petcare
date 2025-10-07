@@ -24,9 +24,9 @@ func NewPaymentService(paymentRepo repository.PaymentRepository, payOSClient *pa
 
 // CreatePaymentRequest represents a payment creation request
 type CreatePaymentRequest struct {
-	UserID      string                `json:"user_id"`
-	Amount      int                   `json:"amount"`      // Amount in VND
-	Description string                `json:"description"`
+	UserID      string                  `json:"user_id"`
+	Amount      int                     `json:"amount"` // Amount in VND
+	Description string                  `json:"description"`
 	Items       []aggregate.PaymentItem `json:"items"`
 }
 

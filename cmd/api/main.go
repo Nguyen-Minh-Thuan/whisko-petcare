@@ -61,12 +61,12 @@ func main() {
 
 	// Initialize PayOS service
 	payOSConfig := &payos.Config{
-		ClientID:     getEnv("PAYOS_CLIENT_ID", ""),
-		APIKey:       getEnv("PAYOS_API_KEY", ""),
-		ChecksumKey:  getEnv("PAYOS_CHECKSUM_KEY", ""),
-		PartnerCode:  getEnv("PAYOS_PARTNER_CODE", ""),
-		ReturnURL:    getEnv("PAYOS_RETURN_URL", "http://localhost:8080/payments/return"),
-		CancelURL:    getEnv("PAYOS_CANCEL_URL", "http://localhost:8080/payments/cancel"),
+		ClientID:    getEnv("PAYOS_CLIENT_ID", ""),
+		APIKey:      getEnv("PAYOS_API_KEY", ""),
+		ChecksumKey: getEnv("PAYOS_CHECKSUM_KEY", ""),
+		PartnerCode: getEnv("PAYOS_PARTNER_CODE", ""),
+		ReturnURL:   getEnv("PAYOS_RETURN_URL", "http://localhost:8080/payments/return"),
+		CancelURL:   getEnv("PAYOS_CANCEL_URL", "http://localhost:8080/payments/cancel"),
 	}
 	payOSService, err := payos.NewService(payOSConfig)
 	if err != nil {

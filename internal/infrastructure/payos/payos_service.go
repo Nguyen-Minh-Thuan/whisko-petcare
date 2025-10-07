@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"strconv"
 
-	payossdk "github.com/payOSHQ/payos-lib-golang"
 	"whisko-petcare/internal/domain/aggregate"
+
+	payossdk "github.com/payOSHQ/payos-lib-golang"
 )
 
 // Service wraps the official PayOS SDK
@@ -17,16 +18,27 @@ type Service struct {
 
 // Config holds the configuration for PayOS integration
 type Config struct {
-	ClientID     string
-	APIKey       string
-	ChecksumKey  string
-	PartnerCode  string // Optional
-	ReturnURL    string
-	CancelURL    string
+	ClientID    string
+	APIKey      string
+	ChecksumKey string
+	PartnerCode string // Optional
+	ReturnURL   string
+	CancelURL   string
 }
 
 // NewService creates a new PayOS service with the official SDK
 func NewService(config *Config) (*Service, error) {
+	// Validate required fields
+	if config.ClientID == "" {
+		return nil, fmt.Errorf("PAYOS_CLIENT_ID is required")
+	}
+	if config.APIKey == "" {
+		return nil, fmt.Errorf("PAYOS_API_KEY is required")
+	}
+	if config.ChecksumKey == "" {
+		return nil, fmt.Errorf("PAYOS_CHECKSUM_KEY is required")
+	}
+
 	// Initialize PayOS with keys
 	var err error
 	if config.PartnerCode != "" {
@@ -121,7 +133,7 @@ func (s *Service) GetPaymentLinkInformation(ctx context.Context, orderCode int64
 			AmountPaid:      response.AmountPaid,
 			AmountRemaining: response.AmountRemaining,
 			Status:          response.Status,
-			CreatedAt:       response.CreateAt, // SDK uses CreateAt not CreatedAt
+			CreatedAt:       response.CreateAt,      // SDK uses CreateAt not CreatedAt
 			Transactions:    []PaymentTransaction{}, // Convert from SDK transactions if needed
 		},
 	}, nil

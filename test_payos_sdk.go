@@ -18,7 +18,7 @@ func main() {
 	// Test PayOS service configuration (using test credentials)
 	config := &payos.Config{
 		ClientID:    "test-client-id",
-		APIKey:      "test-api-key", 
+		APIKey:      "test-api-key",
 		ChecksumKey: "test-checksum-key",
 		ReturnURL:   "http://localhost:8080/payments/return",
 		CancelURL:   "http://localhost:8080/payments/cancel",
@@ -71,9 +71,9 @@ func main() {
 	// Test webhook data mapping
 	fmt.Println("\n📨 Testing Webhook Data Mapping...")
 	testWebhookPayload := map[string]interface{}{
-		"code":    "00",
-		"desc":    "success",
-		"success": true,
+		"code":      "00",
+		"desc":      "success",
+		"success":   true,
 		"signature": "test-signature",
 		"data": map[string]interface{}{
 			"orderCode":           1234567890,
@@ -109,7 +109,7 @@ func main() {
 	fmt.Println("\n🎉 PayOS SDK Integration Test Completed!")
 	fmt.Println("=====================================")
 	fmt.Println("✅ Service creation: OK")
-	fmt.Println("✅ Payment request structure: OK") 
+	fmt.Println("✅ Payment request structure: OK")
 	fmt.Println("✅ Webhook data mapping: OK")
 	fmt.Println("✅ Status mapping: OK")
 	fmt.Println("✅ All type definitions compatible")

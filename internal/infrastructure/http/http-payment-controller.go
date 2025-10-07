@@ -16,13 +16,13 @@ import (
 
 // HTTPPaymentController handles HTTP requests for payment operations
 type HTTPPaymentController struct {
-	createPaymentHandler       *command.CreatePaymentHandler
-	cancelPaymentHandler       *command.CancelPaymentHandler
-	confirmPaymentHandler      *command.ConfirmPaymentHandler
-	getPaymentHandler          *query.GetPaymentHandler
+	createPaymentHandler         *command.CreatePaymentHandler
+	cancelPaymentHandler         *command.CancelPaymentHandler
+	confirmPaymentHandler        *command.ConfirmPaymentHandler
+	getPaymentHandler            *query.GetPaymentHandler
 	getPaymentByOrderCodeHandler *query.GetPaymentByOrderCodeHandler
-	listUserPaymentsHandler    *query.ListUserPaymentsHandler
-	payOSService               *payos.Service
+	listUserPaymentsHandler      *query.ListUserPaymentsHandler
+	payOSService                 *payos.Service
 }
 
 // NewHTTPPaymentController creates a new HTTP payment controller
@@ -36,13 +36,13 @@ func NewHTTPPaymentController(
 	payOSService *payos.Service,
 ) *HTTPPaymentController {
 	return &HTTPPaymentController{
-		createPaymentHandler:       createPaymentHandler,
-		cancelPaymentHandler:       cancelPaymentHandler,
-		confirmPaymentHandler:      confirmPaymentHandler,
-		getPaymentHandler:          getPaymentHandler,
+		createPaymentHandler:         createPaymentHandler,
+		cancelPaymentHandler:         cancelPaymentHandler,
+		confirmPaymentHandler:        confirmPaymentHandler,
+		getPaymentHandler:            getPaymentHandler,
 		getPaymentByOrderCodeHandler: getPaymentByOrderCodeHandler,
-		listUserPaymentsHandler:    listUserPaymentsHandler,
-		payOSService:               payOSService,
+		listUserPaymentsHandler:      listUserPaymentsHandler,
+		payOSService:                 payOSService,
 	}
 }
 

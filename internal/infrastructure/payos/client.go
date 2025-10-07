@@ -18,14 +18,14 @@ import (
 
 // PayOSConfig holds the configuration for PayOS integration
 type PayOSConfig struct {
-	ClientID     string
-	APIKey       string
-	ChecksumKey  string
-	PartnerCode  string
-	BaseURL      string
-	WebhookURL   string
-	ReturnURL    string
-	CancelURL    string
+	ClientID    string
+	APIKey      string
+	ChecksumKey string
+	PartnerCode string
+	BaseURL     string
+	WebhookURL  string
+	ReturnURL   string
+	CancelURL   string
 }
 
 // PayOSClient is the HTTP client for PayOS API
@@ -44,7 +44,7 @@ type PaymentItem struct {
 // CreatePaymentRequest represents the PayOS payment creation request
 type CreatePaymentRequest struct {
 	OrderCode   int64         `json:"orderCode"`
-	Amount      int           `json:"amount"`      // Total amount in VND
+	Amount      int           `json:"amount"` // Total amount in VND
 	Description string        `json:"description"`
 	Items       []PaymentItem `json:"items"`
 	ReturnURL   string        `json:"returnUrl"`
@@ -76,45 +76,45 @@ type PaymentData struct {
 
 // PaymentInfoResponse represents the PayOS payment info response
 type PaymentInfoResponse struct {
-	Code    string            `json:"code"`
-	Desc    string            `json:"desc"`
-	Data    PaymentInfoData   `json:"data"`
-	Success bool              `json:"success"`
+	Code    string          `json:"code"`
+	Desc    string          `json:"desc"`
+	Data    PaymentInfoData `json:"data"`
+	Success bool            `json:"success"`
 }
 
 // PaymentInfoData represents the payment info data
 type PaymentInfoData struct {
-	OrderCode     int64                  `json:"orderCode"`
-	Amount        int                    `json:"amount"`
-	AmountPaid    int                    `json:"amountPaid"`
+	OrderCode       int64                `json:"orderCode"`
+	Amount          int                  `json:"amount"`
+	AmountPaid      int                  `json:"amountPaid"`
 	AmountRemaining int                  `json:"amountRemaining"`
-	Status        string                 `json:"status"`
-	CreatedAt     string                 `json:"createdAt"`
-	Transactions  []PaymentTransaction   `json:"transactions"`
+	Status          string               `json:"status"`
+	CreatedAt       string               `json:"createdAt"`
+	Transactions    []PaymentTransaction `json:"transactions"`
 }
 
 // PaymentTransaction represents a payment transaction
 type PaymentTransaction struct {
-	Reference       string `json:"reference"`
-	Amount          int    `json:"amount"`
-	AccountNumber   string `json:"accountNumber"`
-	Description     string `json:"description"`
+	Reference           string `json:"reference"`
+	Amount              int    `json:"amount"`
+	AccountNumber       string `json:"accountNumber"`
+	Description         string `json:"description"`
 	TransactionDateTime string `json:"transactionDateTime"`
 }
 
 // WebhookData represents the webhook payload from PayOS
 type WebhookData struct {
-	OrderCode   int64  `json:"orderCode"`
-	Amount      int    `json:"amount"`
-	Description string `json:"description"`
-	AccountNumber string `json:"accountNumber"`
-	Reference   string `json:"reference"`
+	OrderCode           int64  `json:"orderCode"`
+	Amount              int    `json:"amount"`
+	Description         string `json:"description"`
+	AccountNumber       string `json:"accountNumber"`
+	Reference           string `json:"reference"`
 	TransactionDateTime string `json:"transactionDateTime"`
-	Currency    string `json:"currency"`
-	PaymentLinkId string `json:"paymentLinkId"`
-	Code        string `json:"code"`
-	Desc        string `json:"desc"`
-	Success     bool   `json:"success"`
+	Currency            string `json:"currency"`
+	PaymentLinkId       string `json:"paymentLinkId"`
+	Code                string `json:"code"`
+	Desc                string `json:"desc"`
+	Success             bool   `json:"success"`
 }
 
 // NewPayOSClient creates a new PayOS client
@@ -291,7 +291,7 @@ func (c *PayOSClient) generateSignature(method, path, body string) string {
 	// Create HMAC SHA256 hash
 	h := hmac.New(sha256.New, []byte(c.config.ChecksumKey))
 	h.Write([]byte(data))
-	
+
 	return hex.EncodeToString(h.Sum(nil))
 }
 

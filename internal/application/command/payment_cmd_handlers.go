@@ -21,10 +21,10 @@ type CreatePaymentResponse struct {
 
 // CreatePaymentCommand represents a command to create a new payment
 type CreatePaymentCommand struct {
-	UserID      string                    `json:"user_id"`
-	Amount      int                       `json:"amount"`      // Amount in VND
-	Description string                    `json:"description"`
-	Items       []aggregate.PaymentItem   `json:"items"`
+	UserID      string                  `json:"user_id"`
+	Amount      int                     `json:"amount"` // Amount in VND
+	Description string                  `json:"description"`
+	Items       []aggregate.PaymentItem `json:"items"`
 }
 
 // CreatePaymentHandler handles create payment commands

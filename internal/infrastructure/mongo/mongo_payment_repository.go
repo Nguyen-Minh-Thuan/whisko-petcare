@@ -68,21 +68,21 @@ func (r *MongoPaymentRepository) Save(ctx context.Context, payment *aggregate.Pa
 
 	// Convert payment to BSON document
 	paymentDoc := bson.M{
-		"_id":                   payment.ID(),
-		"order_code":            payment.OrderCode(),
-		"user_id":               payment.UserID(),
-		"amount":                payment.Amount(),
-		"description":           payment.Description(),
-		"items":                 payment.Items(),
-		"status":                string(payment.Status()),
-		"method":                string(payment.Method()),
-		"payos_transaction_id":  payment.PayOSTransactionID(),
-		"checkout_url":          payment.CheckoutURL(),
-		"qr_code":               payment.QRCode(),
-		"expired_at":            payment.ExpiredAt(),
-		"version":               payment.Version(),
-		"created_at":            payment.CreatedAt(),
-		"updated_at":            payment.UpdatedAt(),
+		"_id":                  payment.ID(),
+		"order_code":           payment.OrderCode(),
+		"user_id":              payment.UserID(),
+		"amount":               payment.Amount(),
+		"description":          payment.Description(),
+		"items":                payment.Items(),
+		"status":               string(payment.Status()),
+		"method":               string(payment.Method()),
+		"payos_transaction_id": payment.PayOSTransactionID(),
+		"checkout_url":         payment.CheckoutURL(),
+		"qr_code":              payment.QRCode(),
+		"expired_at":           payment.ExpiredAt(),
+		"version":              payment.Version(),
+		"created_at":           payment.CreatedAt(),
+		"updated_at":           payment.UpdatedAt(),
 	}
 
 	// Use upsert to insert or update
@@ -175,11 +175,11 @@ func (r *MongoPaymentRepository) SaveEvents(ctx context.Context, aggregateID str
 	for _, evt := range events {
 		currentVersion++
 		eventDoc := bson.M{
-			"aggregate_id":   aggregateID,
-			"event_type":     evt.EventType(),
-			"event_data":     evt,
-			"version":        currentVersion,
-			"occurred_at":    evt.OccurredAt(),
+			"aggregate_id": aggregateID,
+			"event_type":   evt.EventType(),
+			"event_data":   evt,
+			"version":      currentVersion,
+			"occurred_at":  evt.OccurredAt(),
 		}
 		eventDocs = append(eventDocs, eventDoc)
 	}

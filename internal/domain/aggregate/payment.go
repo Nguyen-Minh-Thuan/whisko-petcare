@@ -31,22 +31,22 @@ type PaymentItem = event.PaymentItem
 
 // Payment represents a payment aggregate root
 type Payment struct {
-	id                string
-	orderCode         int64
-	userID            string
-	amount            int // Amount in VND cents
-	description       string
-	items             []PaymentItem
-	status            PaymentStatus
-	method            PaymentMethod
+	id                 string
+	orderCode          int64
+	userID             string
+	amount             int // Amount in VND cents
+	description        string
+	items              []PaymentItem
+	status             PaymentStatus
+	method             PaymentMethod
 	payOSTransactionID string
-	checkoutURL       string
-	qrCode            string
-	expiredAt         time.Time
-	version           int
-	createdAt         time.Time
-	updatedAt         time.Time
-	uncommittedEvents []event.DomainEvent
+	checkoutURL        string
+	qrCode             string
+	expiredAt          time.Time
+	version            int
+	createdAt          time.Time
+	updatedAt          time.Time
+	uncommittedEvents  []event.DomainEvent
 }
 
 // NewPayment creates a new payment aggregate
@@ -66,7 +66,7 @@ func NewPayment(userID string, amount int, description string, items []PaymentIt
 
 	// Generate unique order code (timestamp + random)
 	orderCode := time.Now().Unix()*1000 + int64(time.Now().Nanosecond()/1000000)
-	
+
 	payment := &Payment{
 		id:          uuid.New().String(),
 		orderCode:   orderCode,
@@ -259,21 +259,21 @@ func (p *Payment) LoadFromHistory(events []event.DomainEvent) error {
 }
 
 // Getters
-func (p *Payment) ID() string                        { return p.id }
-func (p *Payment) OrderCode() int64                  { return p.orderCode }
-func (p *Payment) UserID() string                    { return p.userID }
-func (p *Payment) Amount() int                       { return p.amount }
-func (p *Payment) Description() string               { return p.description }
-func (p *Payment) Items() []PaymentItem              { return p.items }
-func (p *Payment) Status() PaymentStatus             { return p.status }
-func (p *Payment) Method() PaymentMethod             { return p.method }
-func (p *Payment) PayOSTransactionID() string        { return p.payOSTransactionID }
-func (p *Payment) CheckoutURL() string               { return p.checkoutURL }
-func (p *Payment) QRCode() string                    { return p.qrCode }
-func (p *Payment) ExpiredAt() time.Time              { return p.expiredAt }
-func (p *Payment) Version() int                      { return p.version }
-func (p *Payment) CreatedAt() time.Time              { return p.createdAt }
-func (p *Payment) UpdatedAt() time.Time              { return p.updatedAt }
+func (p *Payment) ID() string                 { return p.id }
+func (p *Payment) OrderCode() int64           { return p.orderCode }
+func (p *Payment) UserID() string             { return p.userID }
+func (p *Payment) Amount() int                { return p.amount }
+func (p *Payment) Description() string        { return p.description }
+func (p *Payment) Items() []PaymentItem       { return p.items }
+func (p *Payment) Status() PaymentStatus      { return p.status }
+func (p *Payment) Method() PaymentMethod      { return p.method }
+func (p *Payment) PayOSTransactionID() string { return p.payOSTransactionID }
+func (p *Payment) CheckoutURL() string        { return p.checkoutURL }
+func (p *Payment) QRCode() string             { return p.qrCode }
+func (p *Payment) ExpiredAt() time.Time       { return p.expiredAt }
+func (p *Payment) Version() int               { return p.version }
+func (p *Payment) CreatedAt() time.Time       { return p.createdAt }
+func (p *Payment) UpdatedAt() time.Time       { return p.updatedAt }
 
 // Entity interface implementation
 func (p *Payment) GetID() string    { return p.id }
