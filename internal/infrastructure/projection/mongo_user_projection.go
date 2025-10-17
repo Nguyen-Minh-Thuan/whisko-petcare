@@ -13,6 +13,32 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// UserReadModel represents the read model for users
+type UserReadModel struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Email     string    `json:"email"`
+	Phone     string    `json:"phone"`
+	Address   string    `json:"address"`
+	Version   int       `json:"version"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	IsDeleted bool      `json:"is_deleted"`
+}
+
+// UserProjection defines operations for user read model
+type UserProjection interface {
+	GetByID(ctx context.Context, id string) (*UserReadModel, error)
+	List(ctx context.Context, limit, offset int) ([]*UserReadModel, error)
+	Search(ctx context.Context, name, email string) ([]*UserReadModel, error)
+
+	// Event handlers
+	HandleUserCreated(ctx context.Context, event *event.UserCreated) error
+	HandleUserProfileUpdated(ctx context.Context, event *event.UserProfileUpdated) error
+	HandleUserContactUpdated(ctx context.Context, event *event.UserContactUpdated) error
+	HandleUserDeleted(ctx context.Context, event *event.UserDeleted) error
+}
+
 // MongoUserProjection implements UserProjection using MongoDB
 type MongoUserProjection struct {
 	collection *mongo.Collection
