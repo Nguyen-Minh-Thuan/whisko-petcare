@@ -17,6 +17,7 @@ type User struct {
 	version   int
 	createdAt time.Time
 	updatedAt time.Time
+	isActive  bool
 
 	uncommittedEvents []event.DomainEvent
 }
@@ -39,6 +40,7 @@ func NewUser(id, name, email string) (*User, error) {
 		version:   1,
 		createdAt: time.Now(),
 		updatedAt: time.Now(),
+		isActive:  true,
 	}
 
 	user.raiseEvent(&event.UserCreated{
@@ -102,9 +104,9 @@ func (u *User) UpdateContactInfo(phone, address string) error {
 
 func (u *User) Delete() error {
 	u.raiseEvent(&event.UserDeleted{
-		UserID:    u.id,
-		Version:   u.version + 1,
-		Timestamp: time.Now(),
+		UserID:       u.id,
+		EventVersion: u.version + 1,
+		Timestamp:    time.Now(),
 	})
 
 	return nil
@@ -148,8 +150,9 @@ func (u *User) applyEvent(ev event.DomainEvent) error {
 		u.updatedAt = e.Timestamp
 
 	case *event.UserDeleted:
+		u.version = e.EventVersion
 		u.updatedAt = e.Timestamp
-		u.version = e.Version
+		u.isActive = false
 
 	default:
 		return fmt.Errorf("unknown event type: %T", ev)
@@ -186,4 +189,4 @@ func (u *User) LoadFromHistory(events []event.DomainEvent) error {
 		}
 	}
 	return nil
-}
+	}

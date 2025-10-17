@@ -55,14 +55,15 @@ func (e *UserContactUpdated) Version() int          { return e.EventVersion }
 
 // UserDeleted event
 type UserDeleted struct {
-	UserID    string    `json:"user_id"`
-	Timestamp time.Time `json:"timestamp"`
+	UserID       string    `json:"user_id"`
+	EventVersion int       `json:"version"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 func (e *UserDeleted) EventType() string     { return "UserDeleted" }
 func (e *UserDeleted) AggregateID() string   { return e.UserID }
 func (e *UserDeleted) OccurredAt() time.Time { return e.Timestamp }
-func (e *UserDeleted) Version() int          { return 0 }
+func (e *UserDeleted) Version() int          { return e.EventVersion }
 
 // PaymentItem represents an item in the payment (duplicate from aggregate to avoid circular dependency)
 type PaymentItem struct {
