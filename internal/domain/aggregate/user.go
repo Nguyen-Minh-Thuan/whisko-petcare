@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"time"
 	"whisko-petcare/internal/domain/event"
-
-	"github.com/google/uuid"
 )
 
 type User struct {
@@ -33,7 +31,7 @@ func NewUser(id, name, email string) (*User, error) {
 	}
 
 	user := &User{
-		id:        uuid.New().String(),
+		id:        id,
 		name:      name,
 		email:     email,
 		version:   1,
@@ -103,7 +101,6 @@ func (u *User) UpdateContactInfo(phone, address string) error {
 func (u *User) Delete() error {
 	u.raiseEvent(&event.UserDeleted{
 		UserID:    u.id,
-		Version:   u.version + 1,
 		Timestamp: time.Now(),
 	})
 
@@ -149,7 +146,6 @@ func (u *User) applyEvent(ev event.DomainEvent) error {
 
 	case *event.UserDeleted:
 		u.updatedAt = e.Timestamp
-		u.version = e.Version
 
 	default:
 		return fmt.Errorf("unknown event type: %T", ev)
@@ -172,7 +168,7 @@ func (u *User) UpdatedAt() time.Time { return u.updatedAt }
 func (u *User) GetID() string    { return u.id }
 func (u *User) SetID(id string)  { u.id = id }
 func (u *User) GetVersion() int  { return u.version }
-func (u *User) SetVersion(v int) { u.version = v }	
+func (u *User) SetVersion(v int) { u.version = v }
 
 // AggregateRoot interface implementation
 func (u *User) MarkEventsAsCommitted() {
