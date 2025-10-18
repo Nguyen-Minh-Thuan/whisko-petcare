@@ -61,6 +61,7 @@ func NewPet(userID, name, species, breed string, age int, weight float64) (*Pet,
 		Breed:     breed,
 		Age:       age,
 		Weight:    weight,
+		Timestamp: pet.createdAt,
 	})
 
 	return pet, nil
@@ -92,29 +93,29 @@ func (p *Pet) UpdateProfile(name, species, breed string, age int, weight float64
 		return fmt.Errorf("invalid weight: %f", weight)
 	}
 	p.raiseEvent(&event.PetUpdated{
-		PetID:     p.id,
-		Name:      name,
-		Species:   species,
-		Breed:     breed,
-		Age:       age,
-		Weight:    weight,
-		Version:   p.version + 1,
-		Timestamp: time.Now(),
+		PetID:        p.id,
+		UserID:       p.userID,
+		Name:         name,
+		Species:      species,
+		Breed:        breed,
+		Age:          age,
+		Weight:       weight,
+		EventVersion: p.version + 1,
+		Timestamp:    time.Now(),
 	})
 	return nil
 }
 
 func (p *Pet) Delete() error {
 	p.raiseEvent(&event.PetDeleted{
-		PetID:     p.id,
-		Version:   p.version + 1,
-		Timestamp: time.Now(),
-		IsActive:  false,
+		PetID:        p.id,
+		EventVersion: p.version + 1,
+		Timestamp:    time.Now(),
 	})
 	return nil
 }
 
-func (p *pet) GetUncommittedEvents() []event.DomainEvent {
+func (p *Pet) GetUncommittedEvents() []event.DomainEvent {
 	return p.uncommittedEvents
 }
 
@@ -124,12 +125,11 @@ func (p *Pet) ClearUncommittedEvents() {
 
 func (p *Pet) raiseEvent(ev event.DomainEvent) {
 	p.uncommittedEvents = append(p.uncommittedEvents, ev)
-	p.applyEvent(ev)
+	_ = p.applyEvent(ev)
 }
 
 // applyEvent applies an event to the pet state
-func (p *Pet) applyEvent(ev event.DomainEvent) {
-	p.uncommittedEvents = append(p.uncommittedEvents, ev)
+func (p *Pet) applyEvent(ev event.DomainEvent) error {
 	switch e := ev.(type) {
 	case *event.PetCreated:
 		p.id = e.PetID
@@ -141,6 +141,9 @@ func (p *Pet) applyEvent(ev event.DomainEvent) {
 		p.weight = e.Weight
 		p.createdAt = e.Timestamp
 		p.updatedAt = e.Timestamp
+		p.version = 1
+		p.isActive = true
+		
 	case *event.PetUpdated:
 		if e.Name != "" {
 			p.name = e.Name
@@ -157,19 +160,19 @@ func (p *Pet) applyEvent(ev event.DomainEvent) {
 		if e.Weight != 0 {
 			p.weight = e.Weight
 		}
+		p.version = e.EventVersion
 		p.updatedAt = e.Timestamp
+		
 	case *event.PetDeleted:
+		p.version = e.EventVersion
 		p.updatedAt = e.Timestamp
-		p.version = e.Version
-		p.isActive = e.IsActive
-		// Handle deletion logic if needed
+		p.isActive = false
+		
 	default:
-		// Unknown event type
 		return fmt.Errorf("unknown event type: %T", ev)
 	}
 
 	return nil
-
 }
 
 //Getters
@@ -195,12 +198,11 @@ func (p *Pet) MarkEventsAsCommitted(){
 	p.uncommittedEvents = nil
 }
 
-func (p *Pet) raiseEvent(events []event.DomainEvent) error{
-	for _, ev := range events {
-		if err := p.applyEvent(ev); err != nil {
-			return fmt.Errorf("failed to apply event %s: %w", ev.EventType(), err)
+func (p *Pet) LoadFromHistory(events []event.DomainEvent) error {
+	for _, e := range events {
+		if err := p.applyEvent(e); err != nil {
+			return fmt.Errorf("failed to apply event: %w", err)
 		}
 	}
 	return nil
-}
-
+}	

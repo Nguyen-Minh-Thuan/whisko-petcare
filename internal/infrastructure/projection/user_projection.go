@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"whisko-petcare/internal/domain/event"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // UserReadModel represents the read model for users
@@ -36,142 +39,241 @@ type UserProjection interface {
 	HandleUserDeleted(ctx context.Context, event *event.UserDeleted) error
 }
 
-// InMemoryUserProjection implements UserProjection in memory
-type InMemoryUserProjection struct {
-	users map[string]*UserReadModel
-	mutex sync.RWMutex
+// MongoUserProjection implements UserProjection using MongoDB
+type MongoUserProjection struct {
+	collection *mongo.Collection
 }
 
-func NewInMemoryUserProjection() UserProjection {
-	return &InMemoryUserProjection{
-		users: make(map[string]*UserReadModel),
+func NewMongoUserProjection(database *mongo.Database) UserProjection {
+	return &MongoUserProjection{
+		collection: database.Collection("users"), // Read from the same collection where data is written
 	}
 }
 
-func (p *InMemoryUserProjection) GetByID(ctx context.Context, id string) (*UserReadModel, error) {
-	p.mutex.RLock()
-	defer p.mutex.RUnlock()
+func (p *MongoUserProjection) GetByID(ctx context.Context, id string) (*UserReadModel, error) {
+	var result bson.M
+	err := p.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&result) // Removed is_deleted filter
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("user not found")
+		}
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
 
-	user, exists := p.users[id]
-	if !exists || user.IsDeleted {
-		return nil, fmt.Errorf("user not found")
+	user := &UserReadModel{
+		ID:        result["_id"].(string),
+		Name:      result["name"].(string),
+		Email:     result["email"].(string),
+		Phone:     getStringFromResult(result, "phone"),
+		Address:   getStringFromResult(result, "address"),
+		Version:   getIntFromResult(result, "version"),
+		CreatedAt: getTimeFromResult(result, "created_at"),
+		UpdatedAt: getTimeFromResult(result, "updated_at"),
+		IsDeleted: false, // Default to false since users collection doesn't track this
 	}
 
 	return user, nil
 }
 
-func (p *InMemoryUserProjection) List(ctx context.Context, limit, offset int) ([]*UserReadModel, error) {
-	p.mutex.RLock()
-	defer p.mutex.RUnlock()
+func (p *MongoUserProjection) List(ctx context.Context, limit, offset int) ([]*UserReadModel, error) {
+	opts := options.Find().
+		SetLimit(int64(limit)).
+		SetSkip(int64(offset)).
+		SetSort(bson.D{{Key: "created_at", Value: -1}}) // Sort by newest first
+
+	cursor, err := p.collection.Find(ctx, bson.M{}, opts) // Removed is_deleted filter
+	if err != nil {
+		return nil, fmt.Errorf("failed to list users: %w", err)
+	}
+	defer cursor.Close(ctx)
 
 	var users []*UserReadModel
-	count := 0
-
-	for _, user := range p.users {
-		if user.IsDeleted {
-			continue
+	for cursor.Next(ctx) {
+		var result bson.M
+		if err := cursor.Decode(&result); err != nil {
+			return nil, fmt.Errorf("failed to decode user: %w", err)
 		}
 
-		if count >= offset {
-			users = append(users, user)
+		user := &UserReadModel{
+			ID:        result["_id"].(string),
+			Name:      result["name"].(string),
+			Email:     result["email"].(string),
+			Phone:     getStringFromResult(result, "phone"),
+			Address:   getStringFromResult(result, "address"),
+			Version:   getIntFromResult(result, "version"),
+			CreatedAt: getTimeFromResult(result, "created_at"),
+			UpdatedAt: getTimeFromResult(result, "updated_at"),
+			IsDeleted: false,
 		}
-		count++
+		users = append(users, user)
+	}
 
-		if len(users) >= limit {
-			break
-		}
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %w", err)
 	}
 
 	return users, nil
 }
 
-func (p *InMemoryUserProjection) Search(ctx context.Context, name, email string) ([]*UserReadModel, error) {
-	p.mutex.RLock()
-	defer p.mutex.RUnlock()
+func (p *MongoUserProjection) Search(ctx context.Context, name, email string) ([]*UserReadModel, error) {
+	filter := bson.M{"is_deleted": false}
+
+	if name != "" {
+		filter["name"] = bson.M{"$regex": name, "$options": "i"} // Case insensitive
+	}
+	if email != "" {
+		filter["email"] = bson.M{"$regex": "^" + strings.ToLower(email) + "$", "$options": "i"}
+	}
+
+	cursor, err := p.collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search users: %w", err)
+	}
+	defer cursor.Close(ctx)
 
 	var users []*UserReadModel
-
-	for _, user := range p.users {
-		if user.IsDeleted {
-			continue
+	for cursor.Next(ctx) {
+		var user UserReadModel
+		if err := cursor.Decode(&user); err != nil {
+			return nil, fmt.Errorf("failed to decode user: %w", err)
 		}
+		// Set ID from _id field
+		var result bson.M
+		cursor.Decode(&result)
+		user.ID = result["_id"].(string)
+		users = append(users, &user)
+	}
 
-		matchesName := name == "" || strings.Contains(strings.ToLower(user.Name), strings.ToLower(name))
-		matchesEmail := email == "" || strings.EqualFold(user.Email, email)
-
-		if matchesName && matchesEmail {
-			users = append(users, user)
-		}
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %w", err)
 	}
 
 	return users, nil
 }
 
 // Event handlers
-func (p *InMemoryUserProjection) HandleUserCreated(ctx context.Context, event *event.UserCreated) error {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
+func (p *MongoUserProjection) HandleUserCreated(ctx context.Context, event *event.UserCreated) error {
+	userReadModel := bson.M{
+		"_id":        event.UserID,
+		"name":       event.Name,
+		"email":      event.Email,
+		"phone":      event.Phone,
+		"address":    event.Address,
+		"version":    1,
+		"created_at": event.Timestamp,
+		"updated_at": event.Timestamp,
+		"is_deleted": false,
+	}
 
-	p.users[event.UserID] = &UserReadModel{
-		ID:        event.UserID,
-		Name:      event.Name,
-		Email:     event.Email,
-		Phone:     event.Phone,
-		Address:   event.Address,
-		Version:   1,
-		CreatedAt: event.Timestamp,
-		UpdatedAt: event.Timestamp,
-		IsDeleted: false,
+	_, err := p.collection.InsertOne(ctx, userReadModel)
+	if err != nil {
+		return fmt.Errorf("failed to create user projection: %w", err)
 	}
 
 	return nil
 }
 
-func (p *InMemoryUserProjection) HandleUserProfileUpdated(ctx context.Context, event *event.UserProfileUpdated) error {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	user, exists := p.users[event.UserID]
-	if !exists {
-		return fmt.Errorf("user not found for update")
+func (p *MongoUserProjection) HandleUserProfileUpdated(ctx context.Context, event *event.UserProfileUpdated) error {
+	filter := bson.M{"_id": event.UserID}
+	update := bson.M{
+		"$set": bson.M{
+			"name":       event.Name,
+			"email":      event.Email,
+			"version":    event.EventVersion,
+			"updated_at": event.Timestamp,
+		},
 	}
 
-	user.Name = event.Name
-	user.Email = event.Email
-	user.Version = event.EventVersion
-	user.UpdatedAt = event.Timestamp
+	result, err := p.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update user profile projection: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("user not found for profile update")
+	}
 
 	return nil
 }
 
-func (p *InMemoryUserProjection) HandleUserContactUpdated(ctx context.Context, event *event.UserContactUpdated) error {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	user, exists := p.users[event.UserID]
-	if !exists {
-		return fmt.Errorf("user not found for update")
+func (p *MongoUserProjection) HandleUserContactUpdated(ctx context.Context, event *event.UserContactUpdated) error {
+	filter := bson.M{"_id": event.UserID}
+	update := bson.M{
+		"$set": bson.M{
+			"phone":      event.Phone,
+			"address":    event.Address,
+			"version":    event.EventVersion,
+			"updated_at": event.Timestamp,
+		},
 	}
 
-	user.Phone = event.Phone
-	user.Address = event.Address
-	user.Version = event.EventVersion
-	user.UpdatedAt = event.Timestamp
+	result, err := p.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update user contact projection: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("user not found for contact update")
+	}
 
 	return nil
 }
 
-func (p *InMemoryUserProjection) HandleUserDeleted(ctx context.Context, event *event.UserDeleted) error {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
+func (p *MongoUserProjection) HandleUserDeleted(ctx context.Context, event *event.UserDeleted) error {
+	filter := bson.M{"_id": event.UserID}
+	update := bson.M{
+		"$set": bson.M{
+			"is_deleted": true,
+			"updated_at": event.Timestamp,
+		},
+	}
 
-	user, exists := p.users[event.UserID]
-	if !exists {
+	result, err := p.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to mark user as deleted in projection: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
 		return fmt.Errorf("user not found for deletion")
 	}
 
-	user.IsDeleted = true
-	user.UpdatedAt = event.Timestamp
-
 	return nil
+}
+
+// Helper functions for safe type conversion
+func getStringFromResult(m bson.M, key string) string {
+	if val, ok := m[key]; ok && val != nil {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return ""
+}
+
+func getIntFromResult(m bson.M, key string) int {
+	if val, ok := m[key]; ok && val != nil {
+		if i, ok := val.(int32); ok {
+			return int(i)
+		}
+		if i, ok := val.(int64); ok {
+			return int(i)
+		}
+		if i, ok := val.(int); ok {
+			return i
+		}
+	}
+	return 0
+}
+
+func getTimeFromResult(m bson.M, key string) time.Time {
+	if val, ok := m[key]; ok && val != nil {
+		if t, ok := val.(time.Time); ok {
+			return t
+		}
+		// Handle Unix timestamp (int64)
+		if ts, ok := val.(int64); ok {
+			return time.Unix(ts/1000, (ts%1000)*1000000) // Convert milliseconds to nanoseconds
+		}
+	}
+	return time.Time{}
 }

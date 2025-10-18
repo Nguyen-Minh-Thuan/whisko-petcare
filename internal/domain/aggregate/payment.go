@@ -46,6 +46,7 @@ type Payment struct {
 	version            int
 	createdAt          time.Time
 	updatedAt          time.Time
+	
 	uncommittedEvents  []event.DomainEvent
 }
 
