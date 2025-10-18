@@ -9,7 +9,7 @@ import (
 	"whisko-petcare/internal/domain/aggregate"
 	"whisko-petcare/internal/domain/event"
 	"whisko-petcare/internal/infrastructure/bus"
-	"whisko-petcare/internal/infrastructure/projection"
+	// "whisko-petcare/internal/infrastructure/projection" // Not used in this example
 )
 
 // TestEventHandler demonstrates event handling
@@ -65,10 +65,12 @@ func TestUserRepositoryWithUoW() {
 	}
 	defer eventBus.Stop()
 
-	// Create projection for read models
-	userProjection := projection.NewInMemoryUserProjection()
+	// Note: In production, use projection.NewMongoUserProjection(db)
+	// For this example, we'll skip projection setup
+	// userProjection := projection.NewMongoUserProjection(db)
 
-	// Subscribe projection to events
+	// Subscribe projection to events (commented out for example)
+	/*
 	eventBus.Subscribe("UserCreated", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
 			return userProjection.HandleUserCreated(ctx, e.(*event.UserCreated))
@@ -88,6 +90,7 @@ func TestUserRepositoryWithUoW() {
 		func(ctx context.Context, e event.DomainEvent) error {
 			return userProjection.HandleUserDeleted(ctx, e.(*event.UserDeleted))
 		}))
+	*/
 
 	// Test 1: Create users and see events
 	fmt.Println("\n🧪 Test 1: Creating users and triggering events...")
@@ -172,9 +175,9 @@ func TestUserRepositoryWithUoW() {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	// Test 4: Show final projection state
-	fmt.Println("\n🧪 Test 4: Checking projection state...")
-
+	// Test 4: Show final projection state (commented out - requires MongoDB)
+	fmt.Println("\n🧪 Test 4: Checking projection state... (Skipped - requires MongoDB)")
+	/*
 	allUsers, err := userProjection.List(ctx, 10, 0)
 	if err != nil {
 		fmt.Printf("❌ Error getting users from projection: %v\n", err)
@@ -189,6 +192,7 @@ func TestUserRepositoryWithUoW() {
 				user.Name, user.Email, user.Phone, user.Version, status)
 		}
 	}
+	*/
 
 	fmt.Println("\n🎉 Test completed successfully!")
 	fmt.Println("📋 Events were published and handled by multiple handlers:")

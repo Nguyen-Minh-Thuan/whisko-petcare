@@ -11,9 +11,12 @@ import (
 // EventBus defines the contract for event publishing/subscribing
 type EventBus interface {
 	Publish(ctx context.Context, event event.DomainEvent) error
+	PublishSync(ctx context.Context, event event.DomainEvent) error
+	PublishBatch(ctx context.Context, events []event.DomainEvent) error
 	Subscribe(eventType string, handler EventHandler) error
 	Start(ctx context.Context) error
 	Stop() error
+	Wait() // Wait for async operations to complete
 }
 
 // EventHandler handles domain events
@@ -59,6 +62,23 @@ func (b *InMemoryEventBus) Publish(ctx context.Context, event event.DomainEvent)
 	}
 
 	return nil
+}
+
+func (b *InMemoryEventBus) PublishSync(ctx context.Context, event event.DomainEvent) error {
+	return b.Publish(ctx, event)
+}
+
+func (b *InMemoryEventBus) PublishBatch(ctx context.Context, events []event.DomainEvent) error {
+	for _, evt := range events {
+		if err := b.Publish(ctx, evt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (b *InMemoryEventBus) Wait() {
+	// No-op for synchronous implementation
 }
 
 func (b *InMemoryEventBus) Subscribe(eventType string, handler EventHandler) error {

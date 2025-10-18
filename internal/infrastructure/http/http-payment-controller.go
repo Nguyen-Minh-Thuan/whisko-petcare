@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,16 +10,29 @@ import (
 
 	"whisko-petcare/internal/application/command"
 	"whisko-petcare/internal/application/query"
-	"whisko-petcare/internal/domain/aggregate"
 	"whisko-petcare/internal/infrastructure/payos"
+	"whisko-petcare/internal/infrastructure/projection"
 	"whisko-petcare/pkg/response"
 )
 
+// PaymentCommandHandlers defines interfaces for payment command handlers
+type CreatePaymentHandlerInterface interface {
+	Handle(ctx context.Context, cmd *command.CreatePaymentCommand) (*command.CreatePaymentResponse, error)
+}
+
+type CancelPaymentHandlerInterface interface {
+	Handle(ctx context.Context, cmd *command.CancelPaymentCommand) error
+}
+
+type ConfirmPaymentHandlerInterface interface {
+	Handle(ctx context.Context, cmd *command.ConfirmPaymentCommand) error
+}
+
 // HTTPPaymentController handles HTTP requests for payment operations
 type HTTPPaymentController struct {
-	createPaymentHandler         *command.CreatePaymentHandler
-	cancelPaymentHandler         *command.CancelPaymentHandler
-	confirmPaymentHandler        *command.ConfirmPaymentHandler
+	createPaymentHandler         CreatePaymentHandlerInterface
+	cancelPaymentHandler         CancelPaymentHandlerInterface
+	confirmPaymentHandler        ConfirmPaymentHandlerInterface
 	getPaymentHandler            *query.GetPaymentHandler
 	getPaymentByOrderCodeHandler *query.GetPaymentByOrderCodeHandler
 	listUserPaymentsHandler      *query.ListUserPaymentsHandler
@@ -27,9 +41,9 @@ type HTTPPaymentController struct {
 
 // NewHTTPPaymentController creates a new HTTP payment controller
 func NewHTTPPaymentController(
-	createPaymentHandler *command.CreatePaymentHandler,
-	cancelPaymentHandler *command.CancelPaymentHandler,
-	confirmPaymentHandler *command.ConfirmPaymentHandler,
+	createPaymentHandler CreatePaymentHandlerInterface,
+	cancelPaymentHandler CancelPaymentHandlerInterface,
+	confirmPaymentHandler ConfirmPaymentHandlerInterface,
 	getPaymentHandler *query.GetPaymentHandler,
 	getPaymentByOrderCodeHandler *query.GetPaymentByOrderCodeHandler,
 	listUserPaymentsHandler *query.ListUserPaymentsHandler,
@@ -298,11 +312,11 @@ func (c *HTTPPaymentController) ReturnHandler(w http.ResponseWriter, r *http.Req
 		<p><a href="/">Return to Homepage</a></p>
 	</body>
 	</html>`,
-		payment.OrderCode(),
-		payment.Amount(),
-		strings.ToLower(string(payment.Status())),
-		payment.Status(),
-		payment.Description(),
+		payment.OrderCode,
+		payment.Amount,
+		strings.ToLower(payment.Status),
+		payment.Status,
+		payment.Description,
 	)
 
 	w.Header().Set("Content-Type", "text/html")
@@ -333,9 +347,9 @@ func (c *HTTPPaymentController) CancelHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// Cancel the payment if it's still pending
-	if payment.Status() == aggregate.PaymentStatusPending {
+	if payment.Status == "PENDING" {
 		cancelCmd := &command.CancelPaymentCommand{
-			PaymentID: payment.ID(),
+			PaymentID: payment.ID,
 			Reason:    "Cancelled by user via cancel URL",
 		}
 		c.cancelPaymentHandler.Handle(r.Context(), cancelCmd)
@@ -362,8 +376,8 @@ func (c *HTTPPaymentController) CancelHandler(w http.ResponseWriter, r *http.Req
 		<p><a href="/">Return to Homepage</a></p>
 	</body>
 	</html>`,
-		payment.OrderCode(),
-		payment.Amount(),
+		payment.OrderCode,
+		payment.Amount,
 	)
 
 	w.Header().Set("Content-Type", "text/html")
@@ -371,22 +385,22 @@ func (c *HTTPPaymentController) CancelHandler(w http.ResponseWriter, r *http.Req
 	w.Write([]byte(html))
 }
 
-// paymentToResponse converts a Payment aggregate to a response map
-func (c *HTTPPaymentController) paymentToResponse(payment *aggregate.Payment) map[string]interface{} {
+// paymentToResponse converts a PaymentReadModel to a response map
+func (c *HTTPPaymentController) paymentToResponse(payment *projection.PaymentReadModel) map[string]interface{} {
 	return map[string]interface{}{
-		"id":                   payment.ID(),
-		"order_code":           payment.OrderCode(),
-		"user_id":              payment.UserID(),
-		"amount":               payment.Amount(),
-		"description":          payment.Description(),
-		"items":                payment.Items(),
-		"status":               string(payment.Status()),
-		"method":               string(payment.Method()),
-		"payos_transaction_id": payment.PayOSTransactionID(),
-		"checkout_url":         payment.CheckoutURL(),
-		"qr_code":              payment.QRCode(),
-		"expired_at":           payment.ExpiredAt().Format("2006-01-02T15:04:05Z07:00"),
-		"created_at":           payment.CreatedAt().Format("2006-01-02T15:04:05Z07:00"),
-		"updated_at":           payment.UpdatedAt().Format("2006-01-02T15:04:05Z07:00"),
+		"id":                   payment.ID,
+		"order_code":           payment.OrderCode,
+		"user_id":              payment.UserID,
+		"amount":               payment.Amount,
+		"description":          payment.Description,
+		"items":                payment.Items,
+		"status":               payment.Status,
+		"method":               payment.Method,
+		"payos_transaction_id": payment.PayOSTransactionID,
+		"checkout_url":         payment.CheckoutURL,
+		"qr_code":              payment.QRCode,
+		"expired_at":           payment.ExpiredAt.Format("2006-01-02T15:04:05Z07:00"),
+		"created_at":           payment.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		"updated_at":           payment.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }

@@ -20,7 +20,8 @@ type MongoUnitOfWork struct {
 	inTransaction bool
 
 	// Repository instances
-	userRepo repository.UserRepository
+	userRepo    repository.UserRepository
+	paymentRepo repository.PaymentRepository
 }
 
 // NewMongoUnitOfWork creates a new MongoDB unit of work
@@ -114,6 +115,23 @@ func (uow *MongoUnitOfWork) UserRepository() repository.UserRepository {
 	return uow.userRepo
 }
 
+// PaymentRepository returns the payment repository
+func (uow *MongoUnitOfWork) PaymentRepository() repository.PaymentRepository {
+	uow.mutex.Lock()
+	defer uow.mutex.Unlock()
+
+	if uow.paymentRepo == nil {
+		uow.paymentRepo = NewMongoPaymentRepository(uow.database)
+		if uow.inTransaction {
+			if transactionalRepo, ok := uow.paymentRepo.(repository.TransactionalRepository); ok {
+				transactionalRepo.SetTransaction(uow.session)
+			}
+		}
+	}
+
+	return uow.paymentRepo
+}
+
 // Repository returns a generic repository for the specified entity type
 func (uow *MongoUnitOfWork) Repository(entityType string) interface{} {
 	uow.mutex.RLock()
@@ -128,6 +146,8 @@ func (uow *MongoUnitOfWork) Repository(entityType string) interface{} {
 	switch entityType {
 	case "user":
 		return uow.UserRepository()
+	case "payment":
+		return uow.PaymentRepository()
 	default:
 		return nil
 	}
@@ -181,6 +201,12 @@ func (uow *MongoUnitOfWork) setTransactionForRepositories() {
 		}
 	}
 
+	if uow.paymentRepo != nil {
+		if transactionalRepo, ok := uow.paymentRepo.(repository.TransactionalRepository); ok {
+			transactionalRepo.SetTransaction(uow.session)
+		}
+	}
+
 	// Set transaction for other repositories in the map
 	for _, repo := range uow.repositories {
 		if transactionalRepo, ok := repo.(repository.TransactionalRepository); ok {
@@ -193,6 +219,12 @@ func (uow *MongoUnitOfWork) setTransactionForRepositories() {
 func (uow *MongoUnitOfWork) clearTransactionFromRepositories() {
 	if uow.userRepo != nil {
 		if transactionalRepo, ok := uow.userRepo.(repository.TransactionalRepository); ok {
+			transactionalRepo.SetTransaction(nil)
+		}
+	}
+
+	if uow.paymentRepo != nil {
+		if transactionalRepo, ok := uow.paymentRepo.(repository.TransactionalRepository); ok {
 			transactionalRepo.SetTransaction(nil)
 		}
 	}

@@ -73,13 +73,13 @@ func main() {
 		log.Fatal("Failed to initialize PayOS service:", err)
 	}
 
-	// Initialize repositories
-	paymentRepo := mongo.NewMongoPaymentRepository(database)
+	// Initialize projections
+	paymentProjection := projection.NewMongoPaymentProjection(database)
 
 	// Initialize Unit of Work factory
 	uowFactory := mongo.NewMongoUnitOfWorkFactory(mongoClient.GetClient(), database)
 
-	// Subscribe projection to events
+	// Subscribe user projection to events
 	eventBus.Subscribe("UserCreated", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
 			return userProjection.HandleUserCreated(ctx, e.(*event.UserCreated))
@@ -100,6 +100,22 @@ func main() {
 			return userProjection.HandleUserDeleted(ctx, e.(*event.UserDeleted))
 		}))
 
+	// Subscribe payment projection to events
+	eventBus.Subscribe("PaymentCreated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return paymentProjection.HandlePaymentCreated(ctx, e.(*event.PaymentCreated))
+		}))
+
+	eventBus.Subscribe("PaymentUpdated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return paymentProjection.HandlePaymentUpdated(ctx, e.(*event.PaymentUpdated))
+		}))
+
+	eventBus.Subscribe("PaymentStatusChanged", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return paymentProjection.HandlePaymentStatusChanged(ctx, e.(*event.PaymentStatusChanged))
+		}))
+
 	// Initialize Unit of Work command handlers
 	createUserHandler := command.NewCreateUserWithUoWHandler(uowFactory, eventBus)
 	updateUserProfileHandler := command.NewUpdateUserProfileWithUoWHandler(uowFactory, eventBus)
@@ -111,13 +127,15 @@ func main() {
 	listUsersHandler := query.NewListUsersHandler(userProjection)
 	searchUsersHandler := query.NewSearchUsersHandler(userProjection)
 
-	// Initialize payment handlers
-	createPaymentHandler := command.NewCreatePaymentHandler(paymentRepo, payOSService)
-	cancelPaymentHandler := command.NewCancelPaymentHandler(paymentRepo, payOSService)
-	confirmPaymentHandler := command.NewConfirmPaymentHandler(paymentRepo, payOSService)
-	getPaymentHandler := query.NewGetPaymentHandler(paymentRepo)
-	getPaymentByOrderCodeHandler := query.NewGetPaymentByOrderCodeHandler(paymentRepo)
-	listUserPaymentsHandler := query.NewListUserPaymentsHandler(paymentRepo)
+	// Initialize payment command handlers with UoW
+	createPaymentHandler := command.NewCreatePaymentWithUoWHandler(uowFactory, eventBus, payOSService)
+	cancelPaymentHandler := command.NewCancelPaymentWithUoWHandler(uowFactory, eventBus, payOSService)
+	confirmPaymentHandler := command.NewConfirmPaymentWithUoWHandler(uowFactory, eventBus, payOSService)
+	
+	// Initialize payment query handlers
+	getPaymentHandler := query.NewGetPaymentHandler(paymentProjection)
+	getPaymentByOrderCodeHandler := query.NewGetPaymentByOrderCodeHandler(paymentProjection)
+	listUserPaymentsHandler := query.NewListUserPaymentsHandler(paymentProjection)
 
 	// Initialize application service
 	userService := services.NewUserService(

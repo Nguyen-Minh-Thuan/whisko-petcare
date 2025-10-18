@@ -2,9 +2,8 @@ package query
 
 import (
 	"context"
-	"fmt"
-	"whisko-petcare/internal/domain/aggregate"
-	"whisko-petcare/internal/domain/repository"
+	"whisko-petcare/internal/infrastructure/projection"
+	"whisko-petcare/pkg/errors"
 )
 
 // GetPaymentQuery represents a query to get a payment by ID
@@ -14,27 +13,32 @@ type GetPaymentQuery struct {
 
 // GetPaymentHandler handles get payment queries
 type GetPaymentHandler struct {
-	paymentRepo repository.PaymentRepository
+	paymentProjection projection.PaymentProjection
 }
 
 // NewGetPaymentHandler creates a new get payment handler
-func NewGetPaymentHandler(paymentRepo repository.PaymentRepository) *GetPaymentHandler {
+func NewGetPaymentHandler(paymentProjection projection.PaymentProjection) *GetPaymentHandler {
 	return &GetPaymentHandler{
-		paymentRepo: paymentRepo,
+		paymentProjection: paymentProjection,
 	}
 }
 
 // Handle processes the get payment query
-func (h *GetPaymentHandler) Handle(ctx context.Context, query *GetPaymentQuery) (*aggregate.Payment, error) {
+func (h *GetPaymentHandler) Handle(ctx context.Context, query *GetPaymentQuery) (*projection.PaymentReadModel, error) {
 	if query == nil {
-		return nil, fmt.Errorf("query cannot be nil")
+		return nil, errors.NewValidationError("query cannot be nil")
 	}
 
 	if query.PaymentID == "" {
-		return nil, fmt.Errorf("payment_id is required")
+		return nil, errors.NewValidationError("payment_id is required")
 	}
 
-	return h.paymentRepo.GetByID(ctx, query.PaymentID)
+	payment, err := h.paymentProjection.GetByID(ctx, query.PaymentID)
+	if err != nil {
+		return nil, errors.NewNotFoundError("payment")
+	}
+
+	return payment, nil
 }
 
 // GetPaymentByOrderCodeQuery represents a query to get a payment by order code
@@ -44,27 +48,32 @@ type GetPaymentByOrderCodeQuery struct {
 
 // GetPaymentByOrderCodeHandler handles get payment by order code queries
 type GetPaymentByOrderCodeHandler struct {
-	paymentRepo repository.PaymentRepository
+	paymentProjection projection.PaymentProjection
 }
 
 // NewGetPaymentByOrderCodeHandler creates a new get payment by order code handler
-func NewGetPaymentByOrderCodeHandler(paymentRepo repository.PaymentRepository) *GetPaymentByOrderCodeHandler {
+func NewGetPaymentByOrderCodeHandler(paymentProjection projection.PaymentProjection) *GetPaymentByOrderCodeHandler {
 	return &GetPaymentByOrderCodeHandler{
-		paymentRepo: paymentRepo,
+		paymentProjection: paymentProjection,
 	}
 }
 
 // Handle processes the get payment by order code query
-func (h *GetPaymentByOrderCodeHandler) Handle(ctx context.Context, query *GetPaymentByOrderCodeQuery) (*aggregate.Payment, error) {
+func (h *GetPaymentByOrderCodeHandler) Handle(ctx context.Context, query *GetPaymentByOrderCodeQuery) (*projection.PaymentReadModel, error) {
 	if query == nil {
-		return nil, fmt.Errorf("query cannot be nil")
+		return nil, errors.NewValidationError("query cannot be nil")
 	}
 
 	if query.OrderCode == 0 {
-		return nil, fmt.Errorf("order_code is required")
+		return nil, errors.NewValidationError("order_code is required")
 	}
 
-	return h.paymentRepo.GetByOrderCode(ctx, query.OrderCode)
+	payment, err := h.paymentProjection.GetByOrderCode(ctx, query.OrderCode)
+	if err != nil {
+		return nil, errors.NewNotFoundError("payment")
+	}
+
+	return payment, nil
 }
 
 // ListUserPaymentsQuery represents a query to list payments for a user
@@ -76,33 +85,41 @@ type ListUserPaymentsQuery struct {
 
 // ListUserPaymentsHandler handles list user payments queries
 type ListUserPaymentsHandler struct {
-	paymentRepo repository.PaymentRepository
+	paymentProjection projection.PaymentProjection
 }
 
 // NewListUserPaymentsHandler creates a new list user payments handler
-func NewListUserPaymentsHandler(paymentRepo repository.PaymentRepository) *ListUserPaymentsHandler {
+func NewListUserPaymentsHandler(paymentProjection projection.PaymentProjection) *ListUserPaymentsHandler {
 	return &ListUserPaymentsHandler{
-		paymentRepo: paymentRepo,
+		paymentProjection: paymentProjection,
 	}
 }
 
 // Handle processes the list user payments query
-func (h *ListUserPaymentsHandler) Handle(ctx context.Context, query *ListUserPaymentsQuery) ([]*aggregate.Payment, error) {
+func (h *ListUserPaymentsHandler) Handle(ctx context.Context, query *ListUserPaymentsQuery) ([]*projection.PaymentReadModel, error) {
 	if query == nil {
-		return nil, fmt.Errorf("query cannot be nil")
+		return nil, errors.NewValidationError("query cannot be nil")
 	}
 
 	if query.UserID == "" {
-		return nil, fmt.Errorf("user_id is required")
+		return nil, errors.NewValidationError("user_id is required")
 	}
 
 	if query.Limit <= 0 {
 		query.Limit = 10 // Default limit
 	}
-
+	if query.Limit > 100 {
+		query.Limit = 100 // Max limit
+	}
 	if query.Offset < 0 {
 		query.Offset = 0
 	}
 
-	return h.paymentRepo.GetByUserID(ctx, query.UserID, query.Offset, query.Limit)
+	payments, err := h.paymentProjection.ListByUserID(ctx, query.UserID, query.Limit, query.Offset)
+	if err != nil {
+		return nil, errors.NewInternalError("failed to list payments")
+	}
+
+	return payments, nil
 }
+
