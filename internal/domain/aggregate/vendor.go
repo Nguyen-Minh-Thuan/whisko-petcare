@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 	"whisko-petcare/internal/domain/event"
-	"github.com/google/uuid"
 )
 
 type Vendor struct {
@@ -21,7 +20,10 @@ type Vendor struct {
 	uncommittedEvents []event.DomainEvent
 }
 
-func NewVendor(name, email, phone, address string) (*Vendor, error) {
+func NewVendor(vendorID, name, email, phone, address string) (*Vendor, error) {
+	if vendorID == "" {
+		return nil, fmt.Errorf("vendor ID cannot be empty")
+	}
 	if name == "" {
 		return nil, fmt.Errorf("name cannot be empty")
 	}
@@ -35,7 +37,7 @@ func NewVendor(name, email, phone, address string) (*Vendor, error) {
 		return nil, fmt.Errorf("address cannot be empty")
 	}
 	vendor := &Vendor{
-		id:        uuid.New().String(),
+		id:        vendorID,
 		name:      name,
 		email:     email,
 		phone:     phone,

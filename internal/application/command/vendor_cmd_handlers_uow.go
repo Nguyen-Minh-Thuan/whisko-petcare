@@ -57,7 +57,7 @@ func (h *CreateVendorWithUoWHandler) Handle(ctx context.Context, cmd *CreateVend
 	}
 
 	// Create vendor aggregate
-	vendor, err := aggregate.NewVendor(cmd.Name, cmd.Email, cmd.Phone, cmd.Address)
+	vendor, err := aggregate.NewVendor(cmd.VendorID, cmd.Name, cmd.Email, cmd.Phone, cmd.Address)
 	if err != nil {
 		uow.Rollback(ctx)
 		return errors.NewValidationError(fmt.Sprintf("failed to create vendor: %v", err))

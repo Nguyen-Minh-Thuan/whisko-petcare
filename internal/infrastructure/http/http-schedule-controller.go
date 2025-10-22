@@ -7,6 +7,8 @@ import (
 
 	"whisko-petcare/internal/application/command"
 	"whisko-petcare/internal/application/services"
+	"whisko-petcare/pkg/errors"
+	"whisko-petcare/pkg/middleware"
 	"whisko-petcare/pkg/response"
 )
 
@@ -24,18 +26,22 @@ func NewScheduleController(service *services.ScheduleService) *ScheduleControlle
 
 // CreateSchedule handles POST /schedules
 func (c *ScheduleController) CreateSchedule(w http.ResponseWriter, r *http.Request) {
-	var cmd command.CreateSchedule
-	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
-		response.SendBadRequest(w, r, "Invalid request body")
+	var req command.CreateSchedule
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
 		return
 	}
 
-	if err := c.service.CreateSchedule(r.Context(), &cmd); err != nil {
-		response.SendInternalError(w, r, err.Error())
+	if err := c.service.CreateSchedule(r.Context(), &req); err != nil {
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	response.SendCreated(w, r, nil)
+	responseData := map[string]interface{}{
+		"message": "Schedule created successfully",
+	}
+	response.SendCreated(w, r, responseData)
 }
 
 // GetSchedule handles GET /schedules/{id}
@@ -43,13 +49,13 @@ func (c *ScheduleController) GetSchedule(w http.ResponseWriter, r *http.Request)
 	// Extract schedule ID from path
 	scheduleID := r.PathValue("id")
 	if scheduleID == "" {
-		response.SendBadRequest(w, r, "Schedule ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Schedule ID is required"))
 		return
 	}
 
 	schedule, err := c.service.GetSchedule(r.Context(), scheduleID)
 	if err != nil {
-		response.SendInternalError(w, r, err.Error())
+		middleware.HandleError(w, r, err)
 		return
 	}
 
@@ -64,7 +70,7 @@ func (c *ScheduleController) ListSchedules(w http.ResponseWriter, r *http.Reques
 
 	schedules, err := c.service.ListSchedules(r.Context(), offset, limit)
 	if err != nil {
-		response.SendInternalError(w, r, err.Error())
+		middleware.HandleError(w, r, err)
 		return
 	}
 
@@ -76,7 +82,7 @@ func (c *ScheduleController) ListUserSchedules(w http.ResponseWriter, r *http.Re
 	// Extract user ID from path
 	userID := r.PathValue("userID")
 	if userID == "" {
-		response.SendBadRequest(w, r, "User ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("User ID is required"))
 		return
 	}
 
@@ -86,7 +92,7 @@ func (c *ScheduleController) ListUserSchedules(w http.ResponseWriter, r *http.Re
 
 	schedules, err := c.service.ListUserSchedules(r.Context(), userID, offset, limit)
 	if err != nil {
-		response.SendInternalError(w, r, err.Error())
+		middleware.HandleError(w, r, err)
 		return
 	}
 
@@ -98,7 +104,7 @@ func (c *ScheduleController) ListShopSchedules(w http.ResponseWriter, r *http.Re
 	// Extract shop ID from path
 	shopID := r.PathValue("shopID")
 	if shopID == "" {
-		response.SendBadRequest(w, r, "Shop ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Shop ID is required"))
 		return
 	}
 
@@ -108,7 +114,7 @@ func (c *ScheduleController) ListShopSchedules(w http.ResponseWriter, r *http.Re
 
 	schedules, err := c.service.ListShopSchedules(r.Context(), shopID, offset, limit)
 	if err != nil {
-		response.SendInternalError(w, r, err.Error())
+		middleware.HandleError(w, r, err)
 		return
 	}
 
@@ -120,25 +126,33 @@ func (c *ScheduleController) ChangeScheduleStatus(w http.ResponseWriter, r *http
 	// Extract schedule ID from path
 	scheduleID := r.PathValue("id")
 	if scheduleID == "" {
-		response.SendBadRequest(w, r, "Schedule ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Schedule ID is required"))
 		return
 	}
 
-	var cmd command.ChangeScheduleStatus
-	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
-		response.SendBadRequest(w, r, "Invalid request body")
+	var req struct {
+		Status string `json:"status"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
 		return
 	}
 
-	// Set schedule ID from path
-	cmd.ScheduleID = scheduleID
+	cmd := command.ChangeScheduleStatus{
+		ScheduleID: scheduleID,
+		Status:     req.Status,
+	}
 
 	if err := c.service.ChangeScheduleStatus(r.Context(), &cmd); err != nil {
-		response.SendInternalError(w, r, err.Error())
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	response.SendSuccess(w, r, nil)
+	responseData := map[string]interface{}{
+		"message": "Schedule status changed successfully",
+	}
+	response.SendSuccess(w, r, responseData)
 }
 
 // CompleteSchedule handles POST /schedules/{id}/complete
@@ -146,7 +160,7 @@ func (c *ScheduleController) CompleteSchedule(w http.ResponseWriter, r *http.Req
 	// Extract schedule ID from path
 	scheduleID := r.PathValue("id")
 	if scheduleID == "" {
-		response.SendBadRequest(w, r, "Schedule ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Schedule ID is required"))
 		return
 	}
 
@@ -155,11 +169,14 @@ func (c *ScheduleController) CompleteSchedule(w http.ResponseWriter, r *http.Req
 	}
 
 	if err := c.service.CompleteSchedule(r.Context(), cmd); err != nil {
-		response.SendInternalError(w, r, err.Error())
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	response.SendSuccess(w, r, nil)
+	responseData := map[string]interface{}{
+		"message": "Schedule completed successfully",
+	}
+	response.SendSuccess(w, r, responseData)
 }
 
 // CancelSchedule handles POST /schedules/{id}/cancel
@@ -167,23 +184,31 @@ func (c *ScheduleController) CancelSchedule(w http.ResponseWriter, r *http.Reque
 	// Extract schedule ID from path
 	scheduleID := r.PathValue("id")
 	if scheduleID == "" {
-		response.SendBadRequest(w, r, "Schedule ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Schedule ID is required"))
 		return
 	}
 
-	var cmd command.CancelSchedule
-	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
-		response.SendBadRequest(w, r, "Invalid request body")
+	var req struct {
+		Reason string `json:"reason,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
 		return
 	}
 
-	// Set schedule ID from path
-	cmd.ScheduleID = scheduleID
+	cmd := command.CancelSchedule{
+		ScheduleID: scheduleID,
+		Reason:     req.Reason,
+	}
 
 	if err := c.service.CancelSchedule(r.Context(), &cmd); err != nil {
-		response.SendInternalError(w, r, err.Error())
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	response.SendSuccess(w, r, nil)
+	responseData := map[string]interface{}{
+		"message": "Schedule cancelled successfully",
+	}
+	response.SendSuccess(w, r, responseData)
 }

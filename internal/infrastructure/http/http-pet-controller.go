@@ -8,6 +8,8 @@ import (
 
 	"whisko-petcare/internal/application/command"
 	"whisko-petcare/internal/application/services"
+	"whisko-petcare/pkg/errors"
+	"whisko-petcare/pkg/middleware"
 	"whisko-petcare/pkg/response"
 )
 
@@ -25,22 +27,38 @@ func NewHTTPPetController(petService *services.PetService) *HTTPPetController {
 
 // CreatePet handles POST /pets
 func (c *HTTPPetController) CreatePet(w http.ResponseWriter, r *http.Request) {
-	var cmd command.CreatePet
-	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
-		response.SendBadRequest(w, r, "Invalid request body")
+	var req struct {
+		UserID  string  `json:"user_id"`
+		Name    string  `json:"name"`
+		Species string  `json:"species"`
+		Breed   string  `json:"breed,omitempty"`
+		Age     int     `json:"age,omitempty"`
+		Weight  float64 `json:"weight,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
 		return
+	}
+
+	cmd := command.CreatePet{
+		UserID:  req.UserID,
+		Name:    req.Name,
+		Species: req.Species,
+		Breed:   req.Breed,
+		Age:     req.Age,
+		Weight:  req.Weight,
 	}
 
 	if err := c.petService.CreatePet(r.Context(), cmd); err != nil {
-		if strings.Contains(err.Error(), "validation") {
-			response.SendBadRequest(w, r, err.Error())
-			return
-		}
-		response.SendInternalError(w, r, "Failed to create pet")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	response.SendCreated(w, r, map[string]string{"message": "Pet created successfully"})
+	responseData := map[string]interface{}{
+		"message": "Pet created successfully",
+	}
+	response.SendCreated(w, r, responseData)
 }
 
 // GetPet handles GET /pets/{id}
@@ -50,17 +68,13 @@ func (c *HTTPPetController) GetPet(w http.ResponseWriter, r *http.Request) {
 	petID := strings.Split(path, "/")[0]
 	
 	if petID == "" {
-		response.SendBadRequest(w, r, "Pet ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Pet ID is required"))
 		return
 	}
 
 	pet, err := c.petService.GetPet(r.Context(), petID)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			response.SendNotFound(w, r, "Pet not found")
-			return
-		}
-		response.SendInternalError(w, r, "Failed to get pet")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
@@ -90,7 +104,7 @@ func (c *HTTPPetController) ListPets(w http.ResponseWriter, r *http.Request) {
 
 	pets, err := c.petService.ListPets(r.Context(), offset, limit)
 	if err != nil {
-		response.SendInternalError(w, r, "Failed to list pets")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
@@ -110,7 +124,7 @@ func (c *HTTPPetController) ListUserPets(w http.ResponseWriter, r *http.Request)
 	path := strings.TrimPrefix(r.URL.Path, "/users/")
 	parts := strings.Split(path, "/")
 	if len(parts) < 2 || parts[0] == "" {
-		response.SendBadRequest(w, r, "User ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("User ID is required"))
 		return
 	}
 	userID := parts[0]
@@ -136,7 +150,7 @@ func (c *HTTPPetController) ListUserPets(w http.ResponseWriter, r *http.Request)
 
 	pets, err := c.petService.ListUserPets(r.Context(), userID, offset, limit)
 	if err != nil {
-		response.SendInternalError(w, r, "Failed to list user pets")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
@@ -157,32 +171,41 @@ func (c *HTTPPetController) UpdatePet(w http.ResponseWriter, r *http.Request) {
 	petID := strings.Split(path, "/")[0]
 	
 	if petID == "" {
-		response.SendBadRequest(w, r, "Pet ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Pet ID is required"))
 		return
 	}
 
-	var cmd command.UpdatePet
-	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
-		response.SendBadRequest(w, r, "Invalid request body")
+	var req struct {
+		Name    string  `json:"name,omitempty"`
+		Species string  `json:"species,omitempty"`
+		Breed   string  `json:"breed,omitempty"`
+		Age     int     `json:"age,omitempty"`
+		Weight  float64 `json:"weight,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
 		return
 	}
 
-	cmd.PetID = petID
+	cmd := command.UpdatePet{
+		PetID:   petID,
+		Name:    req.Name,
+		Species: req.Species,
+		Breed:   req.Breed,
+		Age:     req.Age,
+		Weight:  req.Weight,
+	}
 
 	if err := c.petService.UpdatePet(r.Context(), cmd); err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			response.SendNotFound(w, r, "Pet not found")
-			return
-		}
-		if strings.Contains(err.Error(), "validation") {
-			response.SendBadRequest(w, r, err.Error())
-			return
-		}
-		response.SendInternalError(w, r, "Failed to update pet")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	response.SendSuccess(w, r, map[string]string{"message": "Pet updated successfully"})
+	responseData := map[string]interface{}{
+		"message": "Pet updated successfully",
+	}
+	response.SendSuccess(w, r, responseData)
 }
 
 // DeletePet handles DELETE /pets/{id}
@@ -192,20 +215,19 @@ func (c *HTTPPetController) DeletePet(w http.ResponseWriter, r *http.Request) {
 	petID := strings.Split(path, "/")[0]
 	
 	if petID == "" {
-		response.SendBadRequest(w, r, "Pet ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Pet ID is required"))
 		return
 	}
 
 	cmd := command.DeletePet{PetID: petID}
 
 	if err := c.petService.DeletePet(r.Context(), cmd); err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			response.SendNotFound(w, r, "Pet not found")
-			return
-		}
-		response.SendInternalError(w, r, "Failed to delete pet")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	response.SendSuccess(w, r, map[string]string{"message": "Pet deleted successfully"})
+	responseData := map[string]interface{}{
+		"message": "Pet deleted successfully",
+	}
+	response.SendSuccess(w, r, responseData)
 }

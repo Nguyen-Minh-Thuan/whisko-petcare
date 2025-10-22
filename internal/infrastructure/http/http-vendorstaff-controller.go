@@ -7,6 +7,8 @@ import (
 
 	"whisko-petcare/internal/application/command"
 	"whisko-petcare/internal/application/services"
+	"whisko-petcare/pkg/errors"
+	"whisko-petcare/pkg/middleware"
 	"whisko-petcare/pkg/response"
 )
 
@@ -24,18 +26,32 @@ func NewVendorStaffController(service *services.VendorStaffService) *VendorStaff
 
 // CreateVendorStaff handles POST /vendor-staffs
 func (c *VendorStaffController) CreateVendorStaff(w http.ResponseWriter, r *http.Request) {
-	var cmd command.CreateVendorStaff
-	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
-		response.SendBadRequest(w, r, "Invalid request body")
+	var req struct {
+		UserID   string `json:"user_id"`
+		VendorID string `json:"vendor_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
 		return
+	}
+
+	cmd := command.CreateVendorStaff{
+		UserID:   req.UserID,
+		VendorID: req.VendorID,
 	}
 
 	if err := c.service.CreateVendorStaff(r.Context(), &cmd); err != nil {
-		response.SendInternalError(w, r, "Failed to create vendor staff")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	response.SendCreated(w, r, map[string]string{"message": "Vendor staff created successfully"})
+	responseData := map[string]interface{}{
+		"user_id":   cmd.UserID,
+		"vendor_id": cmd.VendorID,
+		"message":   "Vendor staff created successfully",
+	}
+	response.SendCreated(w, r, responseData)
 }
 
 // GetVendorStaff handles GET /vendor-staffs/{userID}/{vendorID}
@@ -45,17 +61,17 @@ func (c *VendorStaffController) GetVendorStaff(w http.ResponseWriter, r *http.Re
 	vendorID := r.PathValue("vendorID")
 	
 	if userID == "" {
-		response.SendBadRequest(w, r, "User ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("User ID is required"))
 		return
 	}
 	if vendorID == "" {
-		response.SendBadRequest(w, r, "Vendor ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Vendor ID is required"))
 		return
 	}
 
 	vendorStaff, err := c.service.GetVendorStaff(r.Context(), userID, vendorID)
 	if err != nil {
-		response.SendInternalError(w, r, "Failed to get vendor staff")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
@@ -70,7 +86,7 @@ func (c *VendorStaffController) ListVendorStaffs(w http.ResponseWriter, r *http.
 
 	vendorStaffs, err := c.service.ListVendorStaffs(r.Context(), offset, limit)
 	if err != nil {
-		response.SendInternalError(w, r, "Failed to list vendor staffs")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
@@ -82,7 +98,7 @@ func (c *VendorStaffController) ListVendorStaffByVendor(w http.ResponseWriter, r
 	// Extract vendor ID from path
 	vendorID := r.PathValue("vendorID")
 	if vendorID == "" {
-		response.SendBadRequest(w, r, "Vendor ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Vendor ID is required"))
 		return
 	}
 
@@ -92,7 +108,7 @@ func (c *VendorStaffController) ListVendorStaffByVendor(w http.ResponseWriter, r
 
 	vendorStaffs, err := c.service.ListVendorStaffByVendor(r.Context(), vendorID, offset, limit)
 	if err != nil {
-		response.SendInternalError(w, r, "Failed to list vendor staffs by vendor")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
@@ -104,7 +120,7 @@ func (c *VendorStaffController) ListVendorStaffByUser(w http.ResponseWriter, r *
 	// Extract user ID from path
 	userID := r.PathValue("userID")
 	if userID == "" {
-		response.SendBadRequest(w, r, "User ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("User ID is required"))
 		return
 	}
 
@@ -114,7 +130,7 @@ func (c *VendorStaffController) ListVendorStaffByUser(w http.ResponseWriter, r *
 
 	vendorStaffs, err := c.service.ListVendorStaffByUser(r.Context(), userID, offset, limit)
 	if err != nil {
-		response.SendInternalError(w, r, "Failed to list vendor staffs by user")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
@@ -128,11 +144,11 @@ func (c *VendorStaffController) DeleteVendorStaff(w http.ResponseWriter, r *http
 	vendorID := r.PathValue("vendorID")
 	
 	if userID == "" {
-		response.SendBadRequest(w, r, "User ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("User ID is required"))
 		return
 	}
 	if vendorID == "" {
-		response.SendBadRequest(w, r, "Vendor ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Vendor ID is required"))
 		return
 	}
 
@@ -142,9 +158,12 @@ func (c *VendorStaffController) DeleteVendorStaff(w http.ResponseWriter, r *http
 	}
 
 	if err := c.service.DeleteVendorStaff(r.Context(), cmd); err != nil {
-		response.SendInternalError(w, r, "Failed to delete vendor staff")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	response.SendSuccess(w, r, map[string]string{"message": "Vendor staff deleted successfully"})
+	responseData := map[string]interface{}{
+		"message": "Vendor staff deleted successfully",
+	}
+	response.SendSuccess(w, r, responseData)
 }

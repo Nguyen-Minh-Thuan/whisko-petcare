@@ -120,6 +120,7 @@ func (r *MongoVendorRepository) GetByID(ctx context.Context, id string) (*aggreg
 
 	// Reconstruct vendor from document
 	vendor, err := aggregate.NewVendor(
+		getVendorString(result, "id"),
 		getVendorString(result, "name"),
 		getVendorString(result, "email"),
 		getVendorString(result, "phone"),

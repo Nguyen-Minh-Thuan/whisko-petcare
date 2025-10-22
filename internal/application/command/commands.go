@@ -103,10 +103,11 @@ type DeletePet struct {
 
 // CreateVendor represents a command to create a new vendor
 type CreateVendor struct {
-	Name    string `json:"name"`
-	Email   string `json:"email"`
-	Phone   string `json:"phone"`
-	Address string `json:"address"`
+	VendorID string `json:"vendor_id"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Phone    string `json:"phone"`
+	Address  string `json:"address"`
 }
 
 // UpdateVendor represents a command to update vendor information

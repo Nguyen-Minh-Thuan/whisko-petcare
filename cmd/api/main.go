@@ -371,6 +371,20 @@ func main() {
 	})
 
 	mux.HandleFunc("/users/", func(w http.ResponseWriter, r *http.Request) {
+		// Check for nested routes under /users/{userID}/...
+		if strings.Contains(r.URL.Path, "/pets") && r.Method == http.MethodGet {
+			petController.ListUserPets(w, r)
+			return
+		}
+		if strings.Contains(r.URL.Path, "/schedules") && r.Method == http.MethodGet {
+			scheduleController.ListUserSchedules(w, r)
+			return
+		}
+		if strings.Contains(r.URL.Path, "/vendor-staffs") && r.Method == http.MethodGet {
+			vendorStaffController.ListVendorStaffByUser(w, r)
+			return
+		}
+		
 		switch r.Method {
 		case http.MethodGet:
 			userController.GetUser(w, r)
@@ -457,45 +471,155 @@ func main() {
 	})
 
 	// Pet routes
-	mux.HandleFunc("POST /pets", petController.CreatePet)
-	mux.HandleFunc("GET /pets/{id}", petController.GetPet)
-	mux.HandleFunc("GET /pets", petController.ListPets)
-	mux.HandleFunc("GET /users/{userID}/pets", petController.ListUserPets)
-	mux.HandleFunc("PUT /pets/{id}", petController.UpdatePet)
-	mux.HandleFunc("DELETE /pets/{id}", petController.DeletePet)
+	mux.HandleFunc("/pets", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			petController.CreatePet(w, r)
+		case http.MethodGet:
+			petController.ListPets(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/pets/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			petController.GetPet(w, r)
+		case http.MethodPut:
+			petController.UpdatePet(w, r)
+		case http.MethodDelete:
+			petController.DeletePet(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
 
 	// Vendor routes
-	mux.HandleFunc("POST /vendors", vendorController.CreateVendor)
-	mux.HandleFunc("GET /vendors/{id}", vendorController.GetVendor)
-	mux.HandleFunc("GET /vendors", vendorController.ListVendors)
-	mux.HandleFunc("PUT /vendors/{id}", vendorController.UpdateVendor)
-	mux.HandleFunc("DELETE /vendors/{id}", vendorController.DeleteVendor)
+	mux.HandleFunc("/vendors", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			vendorController.CreateVendor(w, r)
+		case http.MethodGet:
+			vendorController.ListVendors(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/vendors/", func(w http.ResponseWriter, r *http.Request) {
+		// Check for /vendors/{vendorID}/services
+		if strings.Contains(r.URL.Path, "/services") && r.Method == http.MethodGet {
+			serviceController.ListVendorServices(w, r)
+			return
+		}
+		// Check for /vendors/{vendorID}/staff
+		if strings.Contains(r.URL.Path, "/staff") && r.Method == http.MethodGet {
+			vendorStaffController.ListVendorStaffByVendor(w, r)
+			return
+		}
+		// Check for /vendors/{shopID}/schedules
+		if strings.Contains(r.URL.Path, "/schedules") && r.Method == http.MethodGet {
+			scheduleController.ListShopSchedules(w, r)
+			return
+		}
+		
+		switch r.Method {
+		case http.MethodGet:
+			vendorController.GetVendor(w, r)
+		case http.MethodPut:
+			vendorController.UpdateVendor(w, r)
+		case http.MethodDelete:
+			vendorController.DeleteVendor(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
 
 	// Service routes
-	mux.HandleFunc("POST /services", serviceController.CreateService)
-	mux.HandleFunc("GET /services/{id}", serviceController.GetService)
-	mux.HandleFunc("GET /services", serviceController.ListServices)
-	mux.HandleFunc("GET /vendors/{vendorID}/services", serviceController.ListVendorServices)
-	mux.HandleFunc("PUT /services/{id}", serviceController.UpdateService)
-	mux.HandleFunc("DELETE /services/{id}", serviceController.DeleteService)
+	mux.HandleFunc("/services", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			serviceController.CreateService(w, r)
+		case http.MethodGet:
+			serviceController.ListServices(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/services/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			serviceController.GetService(w, r)
+		case http.MethodPut:
+			serviceController.UpdateService(w, r)
+		case http.MethodDelete:
+			serviceController.DeleteService(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
 
 	// Schedule routes
-	mux.HandleFunc("POST /schedules", scheduleController.CreateSchedule)
-	mux.HandleFunc("GET /schedules/{id}", scheduleController.GetSchedule)
-	mux.HandleFunc("GET /schedules", scheduleController.ListSchedules)
-	mux.HandleFunc("GET /users/{userID}/schedules", scheduleController.ListUserSchedules)
-	mux.HandleFunc("GET /vendors/{shopID}/schedules", scheduleController.ListShopSchedules)
-	mux.HandleFunc("PUT /schedules/{id}/status", scheduleController.ChangeScheduleStatus)
-	mux.HandleFunc("POST /schedules/{id}/complete", scheduleController.CompleteSchedule)
-	mux.HandleFunc("POST /schedules/{id}/cancel", scheduleController.CancelSchedule)
+	mux.HandleFunc("/schedules", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			scheduleController.CreateSchedule(w, r)
+		case http.MethodGet:
+			scheduleController.ListSchedules(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/schedules/", func(w http.ResponseWriter, r *http.Request) {
+		// Check for /schedules/{id}/status
+		if strings.HasSuffix(r.URL.Path, "/status") && r.Method == http.MethodPut {
+			scheduleController.ChangeScheduleStatus(w, r)
+			return
+		}
+		// Check for /schedules/{id}/complete
+		if strings.HasSuffix(r.URL.Path, "/complete") && r.Method == http.MethodPost {
+			scheduleController.CompleteSchedule(w, r)
+			return
+		}
+		// Check for /schedules/{id}/cancel
+		if strings.HasSuffix(r.URL.Path, "/cancel") && r.Method == http.MethodPost {
+			scheduleController.CancelSchedule(w, r)
+			return
+		}
+		
+		switch r.Method {
+		case http.MethodGet:
+			scheduleController.GetSchedule(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
 
 	// Vendor Staff routes
-	mux.HandleFunc("POST /vendor-staffs", vendorStaffController.CreateVendorStaff)
-	mux.HandleFunc("GET /vendor-staffs/{userID}/{vendorID}", vendorStaffController.GetVendorStaff)
-	mux.HandleFunc("GET /vendor-staffs", vendorStaffController.ListVendorStaffs)
-	mux.HandleFunc("GET /vendors/{vendorID}/staff", vendorStaffController.ListVendorStaffByVendor)
-	mux.HandleFunc("GET /users/{userID}/vendor-staffs", vendorStaffController.ListVendorStaffByUser)
-	mux.HandleFunc("DELETE /vendor-staffs/{userID}/{vendorID}", vendorStaffController.DeleteVendorStaff)
+	mux.HandleFunc("/vendor-staffs", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			vendorStaffController.CreateVendorStaff(w, r)
+		case http.MethodGet:
+			vendorStaffController.ListVendorStaffs(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/vendor-staffs/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			vendorStaffController.GetVendorStaff(w, r)
+		case http.MethodDelete:
+			vendorStaffController.DeleteVendorStaff(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
 
 	// Health check
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

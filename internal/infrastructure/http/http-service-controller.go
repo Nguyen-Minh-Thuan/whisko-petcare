@@ -8,6 +8,8 @@ import (
 
 	"whisko-petcare/internal/application/command"
 	"whisko-petcare/internal/application/services"
+	"whisko-petcare/pkg/errors"
+	"whisko-petcare/pkg/middleware"
 	"whisko-petcare/pkg/response"
 )
 
@@ -25,22 +27,36 @@ func NewHTTPServiceController(service *services.ServiceService) *HTTPServiceCont
 
 // CreateService handles POST /services
 func (c *HTTPServiceController) CreateService(w http.ResponseWriter, r *http.Request) {
-	var cmd command.CreateService
-	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
-		response.SendBadRequest(w, r, "Invalid request body")
+	var req struct {
+		VendorID    string `json:"vendor_id"`
+		Name        string `json:"name"`
+		Description string `json:"description,omitempty"`
+		Price       int    `json:"price"`
+		Duration    int    `json:"duration_minutes"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
 		return
+	}
+
+	cmd := command.CreateService{
+		VendorID:    req.VendorID,
+		Name:        req.Name,
+		Description: req.Description,
+		Price:       req.Price,
+		Duration:    req.Duration,
 	}
 
 	if err := c.service.CreateService(r.Context(), &cmd); err != nil {
-		if strings.Contains(err.Error(), "validation") {
-			response.SendBadRequest(w, r, err.Error())
-			return
-		}
-		response.SendInternalError(w, r, "Failed to create service")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	response.SendCreated(w, r, map[string]string{"message": "Service created successfully"})
+	responseData := map[string]interface{}{
+		"message": "Service created successfully",
+	}
+	response.SendCreated(w, r, responseData)
 }
 
 // GetService handles GET /services/{id}
@@ -50,17 +66,13 @@ func (c *HTTPServiceController) GetService(w http.ResponseWriter, r *http.Reques
 	serviceID := strings.Split(path, "/")[0]
 	
 	if serviceID == "" {
-		response.SendBadRequest(w, r, "Service ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Service ID is required"))
 		return
 	}
 
 	service, err := c.service.GetService(r.Context(), serviceID)
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			response.SendNotFound(w, r, "Service not found")
-			return
-		}
-		response.SendInternalError(w, r, "Failed to get service")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
@@ -90,7 +102,7 @@ func (c *HTTPServiceController) ListServices(w http.ResponseWriter, r *http.Requ
 
 	services, err := c.service.ListServices(r.Context(), offset, limit)
 	if err != nil {
-		response.SendInternalError(w, r, "Failed to list services")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
@@ -104,7 +116,7 @@ func (c *HTTPServiceController) ListVendorServices(w http.ResponseWriter, r *htt
 	vendorID := strings.Split(path, "/")[0]
 	
 	if vendorID == "" {
-		response.SendBadRequest(w, r, "Vendor ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Vendor ID is required"))
 		return
 	}
 
@@ -129,7 +141,7 @@ func (c *HTTPServiceController) ListVendorServices(w http.ResponseWriter, r *htt
 
 	services, err := c.service.ListVendorServices(r.Context(), vendorID, offset, limit)
 	if err != nil {
-		response.SendInternalError(w, r, "Failed to list vendor services")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
@@ -143,31 +155,39 @@ func (c *HTTPServiceController) UpdateService(w http.ResponseWriter, r *http.Req
 	serviceID := strings.Split(path, "/")[0]
 	
 	if serviceID == "" {
-		response.SendBadRequest(w, r, "Service ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Service ID is required"))
 		return
 	}
 
-	var cmd command.UpdateService
-	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
-		response.SendBadRequest(w, r, "Invalid request body")
+	var req struct {
+		Name        string `json:"name,omitempty"`
+		Description string `json:"description,omitempty"`
+		Price       int    `json:"price,omitempty"`
+		Duration    int    `json:"duration_minutes,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
 		return
 	}
-	cmd.ServiceID = serviceID
+
+	cmd := command.UpdateService{
+		ServiceID:   serviceID,
+		Name:        req.Name,
+		Description: req.Description,
+		Price:       req.Price,
+		Duration:    req.Duration,
+	}
 
 	if err := c.service.UpdateService(r.Context(), &cmd); err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			response.SendNotFound(w, r, "Service not found")
-			return
-		}
-		if strings.Contains(err.Error(), "validation") {
-			response.SendBadRequest(w, r, err.Error())
-			return
-		}
-		response.SendInternalError(w, r, "Failed to update service")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	response.SendSuccess(w, r, map[string]string{"message": "Service updated successfully"})
+	responseData := map[string]interface{}{
+		"message": "Service updated successfully",
+	}
+	response.SendSuccess(w, r, responseData)
 }
 
 // DeleteService handles DELETE /services/{id}
@@ -177,19 +197,18 @@ func (c *HTTPServiceController) DeleteService(w http.ResponseWriter, r *http.Req
 	serviceID := strings.Split(path, "/")[0]
 	
 	if serviceID == "" {
-		response.SendBadRequest(w, r, "Service ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Service ID is required"))
 		return
 	}
 
 	cmd := command.DeleteService{ServiceID: serviceID}
 	if err := c.service.DeleteService(r.Context(), &cmd); err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			response.SendNotFound(w, r, "Service not found")
-			return
-		}
-		response.SendInternalError(w, r, "Failed to delete service")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	response.SendSuccess(w, r, map[string]string{"message": "Service deleted successfully"})
+	responseData := map[string]interface{}{
+		"message": "Service deleted successfully",
+	}
+	response.SendSuccess(w, r, responseData)
 }

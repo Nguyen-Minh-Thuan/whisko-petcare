@@ -2,11 +2,15 @@ package http
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"whisko-petcare/internal/application/command"
 	"whisko-petcare/internal/application/services"
+	"whisko-petcare/pkg/errors"
+	"whisko-petcare/pkg/middleware"
 	"whisko-petcare/pkg/response"
 )
 
@@ -22,20 +26,43 @@ func NewVendorController(service *services.VendorService) *VendorController {
 	}
 }
 
+// generateVendorID generates a unique vendor ID
+func generateVendorID() string {
+	return fmt.Sprintf("vendor_%d", time.Now().UnixNano())
+}
+
 // CreateVendor handles POST /vendors
 func (c *VendorController) CreateVendor(w http.ResponseWriter, r *http.Request) {
-	var cmd command.CreateVendor
-	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
-		response.SendBadRequest(w, r, "Invalid request body")
+	var req struct {
+		Name    string `json:"name"`
+		Email   string `json:"email,omitempty"`
+		Phone   string `json:"phone,omitempty"`
+		Address string `json:"address,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
 		return
+	}
+
+	cmd := command.CreateVendor{
+		VendorID: generateVendorID(),
+		Name:     req.Name,
+		Email:    req.Email,
+		Phone:    req.Phone,
+		Address:  req.Address,
 	}
 
 	if err := c.service.CreateVendor(r.Context(), &cmd); err != nil {
-		response.SendInternalError(w, r, "Failed to create vendor")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	response.SendCreated(w, r, map[string]string{"message": "Vendor created successfully"})
+	responseData := map[string]interface{}{
+		"id":      cmd.VendorID,
+		"message": "Vendor created successfully",
+	}
+	response.SendCreated(w, r, responseData)
 }
 
 // GetVendor handles GET /vendors/{id}
@@ -43,13 +70,13 @@ func (c *VendorController) GetVendor(w http.ResponseWriter, r *http.Request) {
 	// Extract vendor ID from path
 	vendorID := r.PathValue("id")
 	if vendorID == "" {
-		response.SendBadRequest(w, r, "Vendor ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Vendor ID is required"))
 		return
 	}
 
 	vendor, err := c.service.GetVendor(r.Context(), vendorID)
 	if err != nil {
-		response.SendInternalError(w, r, "Failed to get vendor")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
@@ -64,7 +91,7 @@ func (c *VendorController) ListVendors(w http.ResponseWriter, r *http.Request) {
 
 	vendors, err := c.service.ListVendors(r.Context(), offset, limit)
 	if err != nil {
-		response.SendInternalError(w, r, "Failed to list vendors")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
@@ -76,25 +103,39 @@ func (c *VendorController) UpdateVendor(w http.ResponseWriter, r *http.Request) 
 	// Extract vendor ID from path
 	vendorID := r.PathValue("id")
 	if vendorID == "" {
-		response.SendBadRequest(w, r, "Vendor ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Vendor ID is required"))
 		return
 	}
 
-	var cmd command.UpdateVendor
-	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
-		response.SendBadRequest(w, r, "Invalid request body")
+	var req struct {
+		Name    string `json:"name,omitempty"`
+		Email   string `json:"email,omitempty"`
+		Phone   string `json:"phone,omitempty"`
+		Address string `json:"address,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
 		return
 	}
 
-	// Set vendor ID from path
-	cmd.VendorID = vendorID
+	cmd := command.UpdateVendor{
+		VendorID: vendorID,
+		Name:     req.Name,
+		Email:    req.Email,
+		Phone:    req.Phone,
+		Address:  req.Address,
+	}
 
 	if err := c.service.UpdateVendor(r.Context(), &cmd); err != nil {
-		response.SendInternalError(w, r, "Failed to update vendor")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	response.SendSuccess(w, r, map[string]string{"message": "Vendor updated successfully"})
+	responseData := map[string]interface{}{
+		"message": "Vendor updated successfully",
+	}
+	response.SendSuccess(w, r, responseData)
 }
 
 // DeleteVendor handles DELETE /vendors/{id}
@@ -102,7 +143,7 @@ func (c *VendorController) DeleteVendor(w http.ResponseWriter, r *http.Request) 
 	// Extract vendor ID from path
 	vendorID := r.PathValue("id")
 	if vendorID == "" {
-		response.SendBadRequest(w, r, "Vendor ID is required")
+		middleware.HandleError(w, r, errors.NewValidationError("Vendor ID is required"))
 		return
 	}
 
@@ -111,9 +152,12 @@ func (c *VendorController) DeleteVendor(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := c.service.DeleteVendor(r.Context(), cmd); err != nil {
-		response.SendInternalError(w, r, "Failed to delete vendor")
+		middleware.HandleError(w, r, err)
 		return
 	}
 
-	response.SendSuccess(w, r, map[string]string{"message": "Vendor deleted successfully"})
+	responseData := map[string]interface{}{
+		"message": "Vendor deleted successfully",
+	}
+	response.SendSuccess(w, r, responseData)
 }
