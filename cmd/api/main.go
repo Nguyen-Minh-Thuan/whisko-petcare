@@ -75,6 +75,11 @@ func main() {
 
 	// Initialize projections
 	paymentProjection := projection.NewMongoPaymentProjection(database)
+	petProjection := projection.NewMongoPetProjection(database)
+	vendorProjection := projection.NewMongoVendorProjection(database)
+	serviceProjection := projection.NewMongoServiceProjection(database)
+	scheduleProjection := projection.NewMongoScheduleProjection(database)
+	vendorStaffProjection := projection.NewMongoVendorStaffProjection(database)
 
 	// Initialize Unit of Work factory
 	uowFactory := mongo.NewMongoUnitOfWorkFactory(mongoClient.GetClient(), database)
@@ -116,6 +121,86 @@ func main() {
 			return paymentProjection.HandlePaymentStatusChanged(ctx, e.(*event.PaymentStatusChanged))
 		}))
 
+	// Subscribe pet projection to events
+	eventBus.Subscribe("PetCreated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return petProjection.HandlePetCreated(ctx, e.(*event.PetCreated))
+		}))
+
+	eventBus.Subscribe("PetUpdated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return petProjection.HandlePetUpdated(ctx, e.(*event.PetUpdated))
+		}))
+
+	eventBus.Subscribe("PetDeleted", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return petProjection.HandlePetDeleted(ctx, e.(*event.PetDeleted))
+		}))
+
+	// Subscribe vendor projection to events
+	eventBus.Subscribe("VendorCreated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return vendorProjection.HandleVendorCreated(ctx, *e.(*event.VendorCreated))
+		}))
+
+	eventBus.Subscribe("VendorUpdated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return vendorProjection.HandleVendorUpdated(ctx, *e.(*event.VendorUpdated))
+		}))
+
+	eventBus.Subscribe("VendorDeleted", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return vendorProjection.HandleVendorDeleted(ctx, *e.(*event.VendorDeleted))
+		}))
+
+	// Subscribe service projection to events
+	eventBus.Subscribe("ServiceCreated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return serviceProjection.HandleServiceCreated(ctx, *e.(*event.ServiceCreated))
+		}))
+
+	eventBus.Subscribe("ServiceUpdated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return serviceProjection.HandleServiceUpdated(ctx, *e.(*event.ServiceUpdated))
+		}))
+
+	eventBus.Subscribe("ServiceDeleted", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return serviceProjection.HandleServiceDeleted(ctx, *e.(*event.ServiceDeleted))
+		}))
+
+	// Subscribe schedule projection to events
+	eventBus.Subscribe("ScheduleCreated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return scheduleProjection.HandleScheduleCreated(ctx, *e.(*event.ScheduleCreated))
+		}))
+
+	eventBus.Subscribe("ScheduleStatusChanged", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return scheduleProjection.HandleScheduleStatusChanged(ctx, *e.(*event.ScheduleStatusChanged))
+		}))
+
+	eventBus.Subscribe("ScheduleCompleted", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return scheduleProjection.HandleScheduleCompleted(ctx, *e.(*event.ScheduleCompleted))
+		}))
+
+	eventBus.Subscribe("ScheduleCancelled", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return scheduleProjection.HandleScheduleCancelled(ctx, *e.(*event.ScheduleCancelled))
+		}))
+
+	// Subscribe vendor staff projection to events
+	eventBus.Subscribe("VendorStaffCreated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return vendorStaffProjection.HandleVendorStaffCreated(ctx, *e.(*event.VendorStaffCreated))
+		}))
+
+	eventBus.Subscribe("VendorStaffDeleted", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return vendorStaffProjection.HandleVendorStaffDeleted(ctx, *e.(*event.VendorStaffDeleted))
+		}))
+
 	// Initialize Unit of Work command handlers
 	createUserHandler := command.NewCreateUserWithUoWHandler(uowFactory, eventBus)
 	updateUserProfileHandler := command.NewUpdateUserProfileWithUoWHandler(uowFactory, eventBus)
@@ -137,7 +222,58 @@ func main() {
 	getPaymentByOrderCodeHandler := query.NewGetPaymentByOrderCodeHandler(paymentProjection)
 	listUserPaymentsHandler := query.NewListUserPaymentsHandler(paymentProjection)
 
-	// Initialize application service
+	// Initialize pet command handlers
+	createPetHandler := command.NewCreatePetWithUoWHandler(uowFactory, eventBus)
+	updatePetHandler := command.NewUpdatePetWithUoWHandler(uowFactory, eventBus)
+	deletePetHandler := command.NewDeletePetWithUoWHandler(uowFactory, eventBus)
+
+	// Initialize pet query handlers
+	getPetHandler := query.NewGetPetHandler(petProjection)
+	listUserPetsHandler := query.NewListUserPetsHandler(petProjection)
+	listPetsHandler := query.NewListPetsHandler(petProjection)
+
+	// Initialize vendor command handlers
+	createVendorHandler := command.NewCreateVendorWithUoWHandler(uowFactory, eventBus)
+	updateVendorHandler := command.NewUpdateVendorWithUoWHandler(uowFactory, eventBus)
+	deleteVendorHandler := command.NewDeleteVendorWithUoWHandler(uowFactory, eventBus)
+
+	// Initialize vendor query handlers
+	getVendorHandler := query.NewGetVendorHandler(vendorProjection)
+	listVendorsHandler := query.NewListVendorsHandler(vendorProjection)
+
+	// Initialize service command handlers
+	createServiceHandler := command.NewCreateServiceWithUoWHandler(uowFactory, eventBus)
+	updateServiceHandler := command.NewUpdateServiceWithUoWHandler(uowFactory, eventBus)
+	deleteServiceHandler := command.NewDeleteServiceWithUoWHandler(uowFactory, eventBus)
+
+	// Initialize service query handlers
+	getServiceHandler := query.NewGetServiceHandler(serviceProjection)
+	listVendorServicesHandler := query.NewListVendorServicesHandler(serviceProjection)
+	listServicesHandler := query.NewListServicesHandler(serviceProjection)
+
+	// Initialize schedule command handlers
+	createScheduleHandler := command.NewCreateScheduleWithUoWHandler(uowFactory, eventBus)
+	changeScheduleStatusHandler := command.NewChangeScheduleStatusWithUoWHandler(uowFactory, eventBus)
+	completeScheduleHandler := command.NewCompleteScheduleWithUoWHandler(uowFactory, eventBus)
+	cancelScheduleHandler := command.NewCancelScheduleWithUoWHandler(uowFactory, eventBus)
+
+	// Initialize schedule query handlers
+	getScheduleHandler := query.NewGetScheduleHandler(scheduleProjection)
+	listUserSchedulesHandler := query.NewListUserSchedulesHandler(scheduleProjection)
+	listShopSchedulesHandler := query.NewListShopSchedulesHandler(scheduleProjection)
+	listSchedulesHandler := query.NewListSchedulesHandler(scheduleProjection)
+
+	// Initialize vendor staff command handlers
+	createVendorStaffHandler := command.NewCreateVendorStaffWithUoWHandler(uowFactory, eventBus)
+	deleteVendorStaffHandler := command.NewDeleteVendorStaffWithUoWHandler(uowFactory, eventBus)
+
+	// Initialize vendor staff query handlers
+	getVendorStaffHandler := query.NewGetVendorStaffHandler(vendorStaffProjection)
+	listVendorStaffByVendorHandler := query.NewListVendorStaffByVendorHandler(vendorStaffProjection)
+	listVendorStaffByUserHandler := query.NewListVendorStaffByUserHandler(vendorStaffProjection)
+	listVendorStaffsHandler := query.NewListVendorStaffsHandler(vendorStaffProjection)
+
+	// Initialize application services
 	userService := services.NewUserService(
 		createUserHandler,
 		updateUserProfileHandler,
@@ -146,6 +282,52 @@ func main() {
 		getUserHandler,
 		listUsersHandler,
 		searchUsersHandler,
+	)
+
+	petService := services.NewPetService(
+		createPetHandler,
+		updatePetHandler,
+		deletePetHandler,
+		getPetHandler,
+		listUserPetsHandler,
+		listPetsHandler,
+	)
+
+	vendorService := services.NewVendorService(
+		createVendorHandler,
+		updateVendorHandler,
+		deleteVendorHandler,
+		getVendorHandler,
+		listVendorsHandler,
+	)
+
+	serviceService := services.NewServiceService(
+		createServiceHandler,
+		updateServiceHandler,
+		deleteServiceHandler,
+		getServiceHandler,
+		listVendorServicesHandler,
+		listServicesHandler,
+	)
+
+	scheduleService := services.NewScheduleService(
+		createScheduleHandler,
+		changeScheduleStatusHandler,
+		completeScheduleHandler,
+		cancelScheduleHandler,
+		getScheduleHandler,
+		listUserSchedulesHandler,
+		listShopSchedulesHandler,
+		listSchedulesHandler,
+	)
+
+	vendorStaffService := services.NewVendorStaffService(
+		createVendorStaffHandler,
+		deleteVendorStaffHandler,
+		getVendorStaffHandler,
+		listVendorStaffByVendorHandler,
+		listVendorStaffByUserHandler,
+		listVendorStaffsHandler,
 	)
 
 	// Start event bus
@@ -167,6 +349,11 @@ func main() {
 		listUserPaymentsHandler,
 		payOSService,
 	)
+	petController := httpHandler.NewHTTPPetController(petService)
+	vendorController := httpHandler.NewVendorController(vendorService)
+	serviceController := httpHandler.NewHTTPServiceController(serviceService)
+	scheduleController := httpHandler.NewScheduleController(scheduleService)
+	vendorStaffController := httpHandler.NewVendorStaffController(vendorStaffService)
 
 	// Setup HTTP routes
 	mux := http.NewServeMux()
@@ -268,6 +455,47 @@ func main() {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
+
+	// Pet routes
+	mux.HandleFunc("POST /pets", petController.CreatePet)
+	mux.HandleFunc("GET /pets/{id}", petController.GetPet)
+	mux.HandleFunc("GET /pets", petController.ListPets)
+	mux.HandleFunc("GET /users/{userID}/pets", petController.ListUserPets)
+	mux.HandleFunc("PUT /pets/{id}", petController.UpdatePet)
+	mux.HandleFunc("DELETE /pets/{id}", petController.DeletePet)
+
+	// Vendor routes
+	mux.HandleFunc("POST /vendors", vendorController.CreateVendor)
+	mux.HandleFunc("GET /vendors/{id}", vendorController.GetVendor)
+	mux.HandleFunc("GET /vendors", vendorController.ListVendors)
+	mux.HandleFunc("PUT /vendors/{id}", vendorController.UpdateVendor)
+	mux.HandleFunc("DELETE /vendors/{id}", vendorController.DeleteVendor)
+
+	// Service routes
+	mux.HandleFunc("POST /services", serviceController.CreateService)
+	mux.HandleFunc("GET /services/{id}", serviceController.GetService)
+	mux.HandleFunc("GET /services", serviceController.ListServices)
+	mux.HandleFunc("GET /vendors/{vendorID}/services", serviceController.ListVendorServices)
+	mux.HandleFunc("PUT /services/{id}", serviceController.UpdateService)
+	mux.HandleFunc("DELETE /services/{id}", serviceController.DeleteService)
+
+	// Schedule routes
+	mux.HandleFunc("POST /schedules", scheduleController.CreateSchedule)
+	mux.HandleFunc("GET /schedules/{id}", scheduleController.GetSchedule)
+	mux.HandleFunc("GET /schedules", scheduleController.ListSchedules)
+	mux.HandleFunc("GET /users/{userID}/schedules", scheduleController.ListUserSchedules)
+	mux.HandleFunc("GET /vendors/{shopID}/schedules", scheduleController.ListShopSchedules)
+	mux.HandleFunc("PUT /schedules/{id}/status", scheduleController.ChangeScheduleStatus)
+	mux.HandleFunc("POST /schedules/{id}/complete", scheduleController.CompleteSchedule)
+	mux.HandleFunc("POST /schedules/{id}/cancel", scheduleController.CancelSchedule)
+
+	// Vendor Staff routes
+	mux.HandleFunc("POST /vendor-staffs", vendorStaffController.CreateVendorStaff)
+	mux.HandleFunc("GET /vendor-staffs/{userID}/{vendorID}", vendorStaffController.GetVendorStaff)
+	mux.HandleFunc("GET /vendor-staffs", vendorStaffController.ListVendorStaffs)
+	mux.HandleFunc("GET /vendors/{vendorID}/staff", vendorStaffController.ListVendorStaffByVendor)
+	mux.HandleFunc("GET /users/{userID}/vendor-staffs", vendorStaffController.ListVendorStaffByUser)
+	mux.HandleFunc("DELETE /vendor-staffs/{userID}/{vendorID}", vendorStaffController.DeleteVendorStaff)
 
 	// Health check
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

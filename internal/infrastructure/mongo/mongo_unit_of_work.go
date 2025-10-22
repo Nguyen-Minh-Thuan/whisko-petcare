@@ -20,8 +20,13 @@ type MongoUnitOfWork struct {
 	inTransaction bool
 
 	// Repository instances
-	userRepo    repository.UserRepository
-	paymentRepo repository.PaymentRepository
+	userRepo         repository.UserRepository
+	paymentRepo      repository.PaymentRepository
+	petRepo          repository.PetRepository
+	vendorRepo       repository.VendorRepository
+	serviceRepo      repository.ServiceRepository
+	scheduleRepo     repository.ScheduleRepository
+	vendorStaffRepo  repository.VendorStaffRepository
 }
 
 // NewMongoUnitOfWork creates a new MongoDB unit of work
@@ -132,6 +137,91 @@ func (uow *MongoUnitOfWork) PaymentRepository() repository.PaymentRepository {
 	return uow.paymentRepo
 }
 
+// PetRepository returns the pet repository
+func (uow *MongoUnitOfWork) PetRepository() repository.PetRepository {
+	uow.mutex.Lock()
+	defer uow.mutex.Unlock()
+
+	if uow.petRepo == nil {
+		uow.petRepo = NewMongoPetRepository(uow.database)
+		if uow.inTransaction {
+			if transactionalRepo, ok := uow.petRepo.(repository.TransactionalRepository); ok {
+				transactionalRepo.SetTransaction(uow.session)
+			}
+		}
+	}
+
+	return uow.petRepo
+}
+
+// VendorRepository returns the vendor repository
+func (uow *MongoUnitOfWork) VendorRepository() repository.VendorRepository {
+	uow.mutex.Lock()
+	defer uow.mutex.Unlock()
+
+	if uow.vendorRepo == nil {
+		uow.vendorRepo = NewMongoVendorRepository(uow.database)
+		if uow.inTransaction {
+			if transactionalRepo, ok := uow.vendorRepo.(repository.TransactionalRepository); ok {
+				transactionalRepo.SetTransaction(uow.session)
+			}
+		}
+	}
+
+	return uow.vendorRepo
+}
+
+// ServiceRepository returns the service repository
+func (uow *MongoUnitOfWork) ServiceRepository() repository.ServiceRepository {
+	uow.mutex.Lock()
+	defer uow.mutex.Unlock()
+
+	if uow.serviceRepo == nil {
+		uow.serviceRepo = NewMongoServiceRepository(uow.database)
+		if uow.inTransaction {
+			if transactionalRepo, ok := uow.serviceRepo.(repository.TransactionalRepository); ok {
+				transactionalRepo.SetTransaction(uow.session)
+			}
+		}
+	}
+
+	return uow.serviceRepo
+}
+
+// ScheduleRepository returns the schedule repository
+func (uow *MongoUnitOfWork) ScheduleRepository() repository.ScheduleRepository {
+	uow.mutex.Lock()
+	defer uow.mutex.Unlock()
+
+	if uow.scheduleRepo == nil {
+		uow.scheduleRepo = NewMongoScheduleRepository(uow.database)
+		if uow.inTransaction {
+			if transactionalRepo, ok := uow.scheduleRepo.(repository.TransactionalRepository); ok {
+				transactionalRepo.SetTransaction(uow.session)
+			}
+		}
+	}
+
+	return uow.scheduleRepo
+}
+
+// VendorStaffRepository returns the vendor staff repository
+func (uow *MongoUnitOfWork) VendorStaffRepository() repository.VendorStaffRepository {
+	uow.mutex.Lock()
+	defer uow.mutex.Unlock()
+
+	if uow.vendorStaffRepo == nil {
+		uow.vendorStaffRepo = NewMongoVendorStaffRepository(uow.database)
+		if uow.inTransaction {
+			if transactionalRepo, ok := uow.vendorStaffRepo.(repository.TransactionalRepository); ok {
+				transactionalRepo.SetTransaction(uow.session)
+			}
+		}
+	}
+
+	return uow.vendorStaffRepo
+}
+
 // Repository returns a generic repository for the specified entity type
 func (uow *MongoUnitOfWork) Repository(entityType string) interface{} {
 	uow.mutex.RLock()
@@ -207,6 +297,36 @@ func (uow *MongoUnitOfWork) setTransactionForRepositories() {
 		}
 	}
 
+	if uow.petRepo != nil {
+		if transactionalRepo, ok := uow.petRepo.(repository.TransactionalRepository); ok {
+			transactionalRepo.SetTransaction(uow.session)
+		}
+	}
+
+	if uow.vendorRepo != nil {
+		if transactionalRepo, ok := uow.vendorRepo.(repository.TransactionalRepository); ok {
+			transactionalRepo.SetTransaction(uow.session)
+		}
+	}
+
+	if uow.serviceRepo != nil {
+		if transactionalRepo, ok := uow.serviceRepo.(repository.TransactionalRepository); ok {
+			transactionalRepo.SetTransaction(uow.session)
+		}
+	}
+
+	if uow.scheduleRepo != nil {
+		if transactionalRepo, ok := uow.scheduleRepo.(repository.TransactionalRepository); ok {
+			transactionalRepo.SetTransaction(uow.session)
+		}
+	}
+
+	if uow.vendorStaffRepo != nil {
+		if transactionalRepo, ok := uow.vendorStaffRepo.(repository.TransactionalRepository); ok {
+			transactionalRepo.SetTransaction(uow.session)
+		}
+	}
+
 	// Set transaction for other repositories in the map
 	for _, repo := range uow.repositories {
 		if transactionalRepo, ok := repo.(repository.TransactionalRepository); ok {
@@ -225,6 +345,36 @@ func (uow *MongoUnitOfWork) clearTransactionFromRepositories() {
 
 	if uow.paymentRepo != nil {
 		if transactionalRepo, ok := uow.paymentRepo.(repository.TransactionalRepository); ok {
+			transactionalRepo.SetTransaction(nil)
+		}
+	}
+
+	if uow.petRepo != nil {
+		if transactionalRepo, ok := uow.petRepo.(repository.TransactionalRepository); ok {
+			transactionalRepo.SetTransaction(nil)
+		}
+	}
+
+	if uow.vendorRepo != nil {
+		if transactionalRepo, ok := uow.vendorRepo.(repository.TransactionalRepository); ok {
+			transactionalRepo.SetTransaction(nil)
+		}
+	}
+
+	if uow.serviceRepo != nil {
+		if transactionalRepo, ok := uow.serviceRepo.(repository.TransactionalRepository); ok {
+			transactionalRepo.SetTransaction(nil)
+		}
+	}
+
+	if uow.scheduleRepo != nil {
+		if transactionalRepo, ok := uow.scheduleRepo.(repository.TransactionalRepository); ok {
+			transactionalRepo.SetTransaction(nil)
+		}
+	}
+
+	if uow.vendorStaffRepo != nil {
+		if transactionalRepo, ok := uow.vendorStaffRepo.(repository.TransactionalRepository); ok {
 			transactionalRepo.SetTransaction(nil)
 		}
 	}

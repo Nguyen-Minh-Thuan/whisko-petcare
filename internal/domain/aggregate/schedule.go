@@ -8,33 +8,33 @@ import (
 )
 
 type PetAssigned struct {
-	petID   string  `json:"pet_id"`
-	name    string  `json:"name"`
-	species string  `json:"species"`
-	breed   string  `json:"breed"`
-	age     int     `json:"age"`
-	weight  float64 `json:"weight"`
+	PetID   string  `json:"pet_id"`
+	Name    string  `json:"name"`
+	Species string  `json:"species"`
+	Breed   string  `json:"breed"`
+	Age     int     `json:"age"`
+	Weight  float64 `json:"weight"`
 }
 
 type BookingUser struct {
-	userID  string `json:"user_id"`
-	name    string `json:"name"`
-	email   string `json:"email"`
-	phone   string `json:"phone"`
-	address string `json:"address"`
+	UserID  string `json:"user_id"`
+	Name    string `json:"name"`
+	Email   string `json:"email"`
+	Phone   string `json:"phone"`
+	Address string `json:"address"`
 }
 
 type BookedShop struct {
-	shopID   string `json:"shop_id"`
-	name     string `json:"name"`
-	location string `json:"location"`
-	phone    string `json:"phone"`
-	bookedServices   []BookedServices `json:"booked_services"`
+	ShopID         string           `json:"shop_id"`
+	Name           string           `json:"name"`
+	Location       string           `json:"location"`
+	Phone          string           `json:"phone"`
+	BookedServices []BookedServices `json:"booked_services"`
 }
 
 type BookedServices struct {
-	serviceID   string  `json:"service_id"`
-	name        string  `json:"name"`
+	ServiceID string `json:"service_id"`
+	Name      string `json:"name"`
 }
 
 type ScheduleStatus string
@@ -63,13 +63,13 @@ type Schedule struct {
 }
 
 func NewSchedule(bookingUser BookingUser, bookedShop BookedShop, assignedPet PetAssigned, startTime, endTime time.Time) (*Schedule, error) {
-	if bookingUser.userID == "" {
+	if bookingUser.UserID == "" {
 		return nil, fmt.Errorf("userID cannot be empty")
 	}
-	if bookedShop.shopID == "" {
+	if bookedShop.ShopID == "" {
 		return nil, fmt.Errorf("shopID cannot be empty")
 	}
-	if assignedPet.petID == "" {
+	if assignedPet.PetID == "" {
 		return nil, fmt.Errorf("petID cannot be empty")
 	}
 	if startTime.IsZero() {
@@ -98,9 +98,9 @@ func NewSchedule(bookingUser BookingUser, bookedShop BookedShop, assignedPet Pet
 
 	schedule.raiseEvent(&event.ScheduleCreated{
 		ScheduleID: schedule.id,
-		UserID:     bookingUser.userID,
-		ShopID:     bookedShop.shopID,
-		PetID:      assignedPet.petID,
+		UserID:     bookingUser.UserID,
+		ShopID:     bookedShop.ShopID,
+		PetID:      assignedPet.PetID,
 		StartTime:  startTime,
 		EndTime:    endTime,
 		Status:     string(schedule.status),
@@ -190,13 +190,13 @@ func (s *Schedule) applyEvent(ev event.DomainEvent) error {
 	case *event.ScheduleCreated:
 		s.id = e.ScheduleID
 		s.bookingUser = BookingUser{
-			userID: e.UserID,
+			UserID: e.UserID,
 		}
 		s.bookedShop = BookedShop{
-			shopID: e.ShopID,
+			ShopID: e.ShopID,
 		}
 		s.assignedPet = PetAssigned{
-			petID: e.PetID,
+			PetID: e.PetID,
 		}
 		s.startTime = e.StartTime
 		s.endTime = e.EndTime

@@ -14,6 +14,11 @@ type UnitOfWork interface {
 	// Repository factory methods
 	UserRepository() UserRepository
 	PaymentRepository() PaymentRepository
+	PetRepository() PetRepository
+	VendorRepository() VendorRepository
+	ServiceRepository() ServiceRepository
+	ScheduleRepository() ScheduleRepository
+	VendorStaffRepository() VendorStaffRepository
 
 	// Generic repository factory
 	Repository(entityType string) interface{}
