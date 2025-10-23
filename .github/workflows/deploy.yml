@@ -31,5 +31,18 @@ jobs:
 
             echo "Restarting app..."
             pkill app || true
+            
+            # Export environment variables and run app
+            export PORT=8080
+            export MONGO_URI="$MONGO_URI"
+            export MONGO_DATABASE="$MONGO_DATABASE"
+            export PAYOS_CLIENT_ID="$PAYOS_CLIENT_ID"
+            export PAYOS_API_KEY="$PAYOS_API_KEY"
+            export PAYOS_CHECKSUM_KEY="$PAYOS_CHECKSUM_KEY"
+            export PAYOS_PARTNER_CODE="$PAYOS_PARTNER_CODE"
+            export PAYOS_BASE_URL="$PAYOS_BASE_URL"
+            export PAYOS_RETURN_URL="$PAYOS_RETURN_URL"
+            export PAYOS_CANCEL_URL="$PAYOS_CANCEL_URL"
+            
             nohup ./app > app.log 2>&1 &
             echo "✅ Deployed successfully!"
