@@ -6,21 +6,23 @@ services:
       context: ..
       dockerfile: deployments/Dockerfile
     ports:
-      - "8080:8080"
+      - "${PORT:-8080}:8080"
+    env_file:
+      - ../.env
     environment:
       # MongoDB Configuration (MongoDB Atlas - External)
-      - MONGO_URI=${MONGO_URI:-}
-      - MONGO_DATABASE=${MONGO_DATABASE:-whisko_petcare}
+      - MONGO_URI=${MONGO_URI}
+      - MONGO_DATABASE=${MONGO_DATABASE}
       
       # Server Configuration
-      - PORT=8080
+      - PORT=${PORT}
       
       # PayOS Configuration
-      - PAYOS_CLIENT_ID=${PAYOS_CLIENT_ID:-}
-      - PAYOS_API_KEY=${PAYOS_API_KEY:-}
-      - PAYOS_CHECKSUM_KEY=${PAYOS_CHECKSUM_KEY:-}
-      - PAYOS_PARTNER_CODE=${PAYOS_PARTNER_CODE:-}
-      - PAYOS_BASE_URL=${PAYOS_BASE_URL:-https://api-merchant.payos.vn}
-      - PAYOS_RETURN_URL=${PAYOS_RETURN_URL:-http://localhost:8080/payments/return}
-      - PAYOS_CANCEL_URL=${PAYOS_CANCEL_URL:-http://localhost:8080/payments/cancel}
+      - PAYOS_CLIENT_ID=${PAYOS_CLIENT_ID}
+      - PAYOS_API_KEY=${PAYOS_API_KEY}
+      - PAYOS_CHECKSUM_KEY=${PAYOS_CHECKSUM_KEY}
+      - PAYOS_PARTNER_CODE=${PAYOS_PARTNER_CODE}
+      - PAYOS_BASE_URL=${PAYOS_BASE_URL}
+      - PAYOS_RETURN_URL=${PAYOS_RETURN_URL}
+      - PAYOS_CANCEL_URL=${PAYOS_CANCEL_URL}
     restart: unless-stopped
