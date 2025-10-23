@@ -1,0 +1,35 @@
+name: Deploy Go app to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Disable host key checking
+        run: echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+
+      - name: SSH Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/whisko-petcare
+            git pull origin main
+
+            echo "Building Go app..."
+            go build -o app
+
+            echo "Restarting app..."
+            pkill app || true
+            nohup ./app > app.log 2>&1 &
+            echo "✅ Deployed successfully!"
