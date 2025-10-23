@@ -2,29 +2,25 @@ version: '3.8'
 
 services:
   app:
-    build: .
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile
     ports:
       - "8080:8080"
     environment:
-      - MONGODB_URI=mongodb://mongo:27017
-      - DATABASE_NAME=whisko
+      # MongoDB Configuration (MongoDB Atlas - External)
+      - MONGO_URI=${MONGO_URI:-mongodb+srv://hungnqse183854:TDX9A3CiORVdsMTx@laazy.mbayngp.mongodb.net/?retryWrites=true&w=majority&appName=Laazy}
+      - MONGO_DATABASE=${MONGO_DATABASE:-whisko_petcare}
+      
+      # Server Configuration
       - PORT=8080
-    depends_on:
-      - mongo
-    networks:
-      - whisko-network
-
-  mongo:
-    image: mongo:5.0
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    networks:
-      - whisko-network
-
-volumes:
-  mongo_data:
-
-networks:
-  whisko-network:
+      
+      # PayOS Configuration
+      - PAYOS_CLIENT_ID=${PAYOS_CLIENT_ID:-cfc2110a-5dc5-4551-9bbe-1d712e8346c9}
+      - PAYOS_API_KEY=${PAYOS_API_KEY:-986a04a4-ff07-4e33-90e7-7cc2c353a1db}
+      - PAYOS_CHECKSUM_KEY=${PAYOS_CHECKSUM_KEY:-ba8769a5ef4f47c066e556c387cfc9d8021ce3d8d5f220b1315ddd839d2b8900}
+      - PAYOS_PARTNER_CODE=${PAYOS_PARTNER_CODE:-}
+      - PAYOS_BASE_URL=${PAYOS_BASE_URL:-https://api-merchant.payos.vn}
+      - PAYOS_RETURN_URL=${PAYOS_RETURN_URL:-http://localhost:8080/payments/return}
+      - PAYOS_CANCEL_URL=${PAYOS_CANCEL_URL:-http://localhost:8080/payments/cancel}
+    restart: unless-stopped
