@@ -45,10 +45,11 @@ jobs:
             PAYOS_CANCEL_URL=${{ secrets.PAYOS_CANCEL_URL }}
             EOF
 
-            echo "Building Go app..."
-            go build -o app
+            echo "Stopping existing containers..."
+            cd deployments
+            docker-compose down
 
-            echo "Restarting app..."
-            pkill app || true
-            nohup ./app > app.log 2>&1 &
+            echo "Building and starting containers..."
+            docker-compose up -d --build
+
             echo "✅ Deployed successfully!"
