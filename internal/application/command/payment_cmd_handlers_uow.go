@@ -87,10 +87,16 @@ func (h *CreatePaymentWithUoWHandler) Handle(ctx context.Context, cmd *CreatePay
 	}
 
 	// Create payment request for PayOS
+	// PayOS requires description to be max 25 characters
+	description := cmd.Description
+	if len(description) > 25 {
+		description = description[:25]
+	}
+	
 	payOSReq := &payos.CreatePaymentRequest{
 		OrderCode:   payment.OrderCode(),
 		Amount:      cmd.Amount,
-		Description: cmd.Description,
+		Description: description,
 		Items:       payOSItems,
 		ReturnURL:   h.payOSService.GetReturnURL(),
 		CancelURL:   h.payOSService.GetCancelURL(),
