@@ -7,15 +7,13 @@ services:
       dockerfile: deployments/Dockerfile
     ports:
       - "${PORT:-8080}:8080"
-    env_file:
-      - ../.env
     environment:
-      # MongoDB Configuration (MongoDB Atlas - External)
+      # MongoDB Configuration
       - MONGO_URI=${MONGO_URI}
       - MONGO_DATABASE=${MONGO_DATABASE}
       
       # Server Configuration
-      - PORT=${PORT}
+      - PORT=${PORT:-8080}
       
       # PayOS Configuration
       - PAYOS_CLIENT_ID=${PAYOS_CLIENT_ID}
