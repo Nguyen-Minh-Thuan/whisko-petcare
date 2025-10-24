@@ -27,15 +27,10 @@ jobs:
             git pull origin main
 
             echo "Creating .env file from GitHub secrets..."
-            cat > .env << 'EOF'
-            # Server Configuration
+            cat > .env << EOF
             PORT=${{ secrets.PORT }}
-
-            # MongoDB Configuration
             MONGO_URI=${{ secrets.MONGO_URI }}
             MONGO_DATABASE=${{ secrets.MONGO_DATABASE }}
-
-            # PayOS Configuration
             PAYOS_CLIENT_ID=${{ secrets.PAYOS_CLIENT_ID }}
             PAYOS_API_KEY=${{ secrets.PAYOS_API_KEY }}
             PAYOS_CHECKSUM_KEY=${{ secrets.PAYOS_CHECKSUM_KEY }}
@@ -45,11 +40,19 @@ jobs:
             PAYOS_CANCEL_URL=${{ secrets.PAYOS_CANCEL_URL }}
             EOF
 
+            echo "Verifying .env file..."
+            ls -la .env
+            echo "First 3 lines of .env:"
+            head -n 3 .env
+
             echo "Stopping existing containers..."
             cd deployments
             docker-compose down
 
             echo "Building and starting containers..."
             docker-compose up -d --build
+            
+            echo "Checking container logs..."
+            docker-compose logs --tail=20
 
             echo "✅ Deployed successfully!"
