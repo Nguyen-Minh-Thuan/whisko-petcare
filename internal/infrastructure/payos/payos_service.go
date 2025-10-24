@@ -267,3 +267,13 @@ func CreateWebhookDataFromMap(data map[string]interface{}) (*payossdk.WebhookTyp
 
 	return webhookType, nil
 }
+
+// GetReturnURL returns the configured return URL
+func (s *Service) GetReturnURL() string {
+	return s.config.ReturnURL
+}
+
+// GetCancelURL returns the configured cancel URL
+func (s *Service) GetCancelURL() string {
+	return s.config.CancelURL
+}

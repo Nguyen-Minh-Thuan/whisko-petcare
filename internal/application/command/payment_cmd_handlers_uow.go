@@ -92,6 +92,8 @@ func (h *CreatePaymentWithUoWHandler) Handle(ctx context.Context, cmd *CreatePay
 		Amount:      cmd.Amount,
 		Description: cmd.Description,
 		Items:       payOSItems,
+		ReturnURL:   h.payOSService.GetReturnURL(),
+		CancelURL:   h.payOSService.GetCancelURL(),
 	}
 
 	// Create payment in PayOS using the service
