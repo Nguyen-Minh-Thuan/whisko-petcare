@@ -156,13 +156,13 @@ type DeleteService struct {
 // CreateSchedule represents a command to create a new schedule
 type CreateSchedule struct {
 	UserID        string              `json:"user_id"`
-	ShopID        string              `json:"shop_id"`
+	VendorID      string              `json:"vendor_id"`
 	PetID         string              `json:"pet_id"`
 	ServiceIDs    []string            `json:"service_ids"`
 	StartTime     string              `json:"start_time"` // RFC3339 format
 	EndTime       string              `json:"end_time"`   // RFC3339 format
 	BookingUser   BookingUserData     `json:"booking_user"`
-	BookedShop    BookedShopData      `json:"booked_shop"`
+	BookedVendor  BookedVendorData    `json:"booked_vendor"`
 	AssignedPet   AssignedPetData     `json:"assigned_pet"`
 }
 
@@ -173,7 +173,7 @@ type BookingUserData struct {
 	Address string `json:"address"`
 }
 
-type BookedShopData struct {
+type BookedVendorData struct {
 	Name     string              `json:"name"`
 	Location string              `json:"location"`
 	Phone    string              `json:"phone"`
