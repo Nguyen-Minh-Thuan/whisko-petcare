@@ -83,9 +83,14 @@ func (c *HTTPUserController) GetUser(w http.ResponseWriter, r *http.Request) {
 		"email":      userReadModel.Email,
 		"phone":      userReadModel.Phone,
 		"address":    userReadModel.Address,
+		"role":       userReadModel.Role,
+		"is_active":  userReadModel.IsActive,
 		"version":    userReadModel.Version,
 		"created_at": userReadModel.CreatedAt,
 		"updated_at": userReadModel.UpdatedAt,
+	}
+	if userReadModel.LastLoginAt != nil {
+		userData["last_login_at"] = userReadModel.LastLoginAt
 	}
 	response.SendSuccess(w, r, userData)
 }
@@ -103,16 +108,22 @@ func (c *HTTPUserController) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 	var userList []map[string]interface{}
 	for _, user := range users {
-		userList = append(userList, map[string]interface{}{
+		userData := map[string]interface{}{
 			"id":         user.ID,
 			"name":       user.Name,
 			"email":      user.Email,
 			"phone":      user.Phone,
 			"address":    user.Address,
+			"role":       user.Role,
+			"is_active":  user.IsActive,
 			"version":    user.Version,
 			"created_at": user.CreatedAt,
 			"updated_at": user.UpdatedAt,
-		})
+		}
+		if user.LastLoginAt != nil {
+			userData["last_login_at"] = user.LastLoginAt
+		}
+		userList = append(userList, userData)
 	}
 
 	// Use ApiResponse with metadata for pagination

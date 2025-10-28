@@ -65,15 +65,19 @@ func (p *MongoUserProjection) GetByID(ctx context.Context, id string) (*UserRead
 	}
 
 	user := &UserReadModel{
-		ID:        result["_id"].(string),
-		Name:      result["name"].(string),
-		Email:     result["email"].(string),
-		Phone:     getStringFromResult(result, "phone"),
-		Address:   getStringFromResult(result, "address"),
-		Version:   getIntFromResult(result, "version"),
-		CreatedAt: getTimeFromResult(result, "created_at"),
-		UpdatedAt: getTimeFromResult(result, "updated_at"),
-		IsDeleted: false, // Default to false since users collection doesn't track this
+		ID:             getStringFromResult(result, "_id"),
+		Name:           getStringFromResult(result, "name"),
+		Email:          getStringFromResult(result, "email"),
+		Phone:          getStringFromResult(result, "phone"),
+		Address:        getStringFromResult(result, "address"),
+		HashedPassword: getStringFromResult(result, "hashed_password"),
+		Role:           getStringFromResult(result, "role"),
+		LastLoginAt:    getTimePointerFromResult(result, "last_login_at"),
+		IsActive:       getBoolFromResult(result, "is_active"),
+		Version:        getIntFromResult(result, "version"),
+		CreatedAt:      getTimeFromResult(result, "created_at"),
+		UpdatedAt:      getTimeFromResult(result, "updated_at"),
+		IsDeleted:      getBoolFromResult(result, "is_deleted"),
 	}
 
 	return user, nil
@@ -99,15 +103,19 @@ func (p *MongoUserProjection) List(ctx context.Context, limit, offset int) ([]*U
 		}
 
 		user := &UserReadModel{
-			ID:        result["_id"].(string),
-			Name:      result["name"].(string),
-			Email:     result["email"].(string),
-			Phone:     getStringFromResult(result, "phone"),
-			Address:   getStringFromResult(result, "address"),
-			Version:   getIntFromResult(result, "version"),
-			CreatedAt: getTimeFromResult(result, "created_at"),
-			UpdatedAt: getTimeFromResult(result, "updated_at"),
-			IsDeleted: false,
+			ID:             getStringFromResult(result, "_id"),
+			Name:           getStringFromResult(result, "name"),
+			Email:          getStringFromResult(result, "email"),
+			Phone:          getStringFromResult(result, "phone"),
+			Address:        getStringFromResult(result, "address"),
+			HashedPassword: getStringFromResult(result, "hashed_password"),
+			Role:           getStringFromResult(result, "role"),
+			LastLoginAt:    getTimePointerFromResult(result, "last_login_at"),
+			IsActive:       getBoolFromResult(result, "is_active"),
+			Version:        getIntFromResult(result, "version"),
+			CreatedAt:      getTimeFromResult(result, "created_at"),
+			UpdatedAt:      getTimeFromResult(result, "updated_at"),
+			IsDeleted:      getBoolFromResult(result, "is_deleted"),
 		}
 		users = append(users, user)
 	}
@@ -280,4 +288,27 @@ func getTimeFromResult(m bson.M, key string) time.Time {
 		}
 	}
 	return time.Time{}
+}
+
+func getBoolFromResult(m bson.M, key string) bool {
+	if val, ok := m[key]; ok && val != nil {
+		if b, ok := val.(bool); ok {
+			return b
+		}
+	}
+	return false
+}
+
+func getTimePointerFromResult(m bson.M, key string) *time.Time {
+	if val, ok := m[key]; ok && val != nil {
+		if t, ok := val.(time.Time); ok {
+			return &t
+		}
+		// Handle Unix timestamp (int64)
+		if ts, ok := val.(int64); ok {
+			timeVal := time.Unix(ts/1000, (ts%1000)*1000000)
+			return &timeVal
+		}
+	}
+	return nil
 }
