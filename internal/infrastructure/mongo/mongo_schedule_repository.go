@@ -133,9 +133,9 @@ func (r *MongoScheduleRepository) GetByID(ctx context.Context, id string) (*aggr
 		}
 	}
 
-	var bookedShop aggregate.BookedShop
+	var bookedShop aggregate.BookedVendor
 	if bs, ok := result["booked_shop"].(bson.M); ok {
-		bookedShop = aggregate.BookedShop{
+		bookedShop = aggregate.BookedVendor{
 			ShopID:   getScheduleString(bs, "shop_id"),
 			Name:     getScheduleString(bs, "name"),
 			Location: getScheduleString(bs, "location"),

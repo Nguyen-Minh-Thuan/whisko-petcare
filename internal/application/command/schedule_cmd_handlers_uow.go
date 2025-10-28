@@ -38,7 +38,7 @@ func (h *CreateScheduleWithUoWHandler) Handle(ctx context.Context, cmd *CreateSc
 	if cmd.UserID == "" {
 		return errors.NewValidationError("user_id is required")
 	}
-	if cmd.ShopID == "" {
+	if cmd.VendorID == "" {
 		return errors.NewValidationError("shop_id is required")
 	}
 	if cmd.PetID == "" {
@@ -72,7 +72,7 @@ func (h *CreateScheduleWithUoWHandler) Handle(ctx context.Context, cmd *CreateSc
 
 	// Create booked services
 	var bookedServices []aggregate.BookedServices
-	for _, s := range cmd.BookedShop.Services {
+	for _, s := range cmd.BookedVendor.Services {
 		bookedServices = append(bookedServices, aggregate.BookedServices{
 			ServiceID: s.ServiceID,
 			Name:      s.Name,
@@ -80,11 +80,11 @@ func (h *CreateScheduleWithUoWHandler) Handle(ctx context.Context, cmd *CreateSc
 	}
 
 	// Create booked shop
-	bookedShop := aggregate.BookedShop{
-		ShopID:         cmd.ShopID,
-		Name:           cmd.BookedShop.Name,
-		Location:       cmd.BookedShop.Location,
-		Phone:          cmd.BookedShop.Phone,
+	bookedVendor := aggregate.BookedVendor{
+		ShopID:         cmd.VendorID,
+		Name:           cmd.BookedVendor.Name,
+		Location:       cmd.BookedVendor.Location,
+		Phone:          cmd.BookedVendor.Phone,
 		BookedServices: bookedServices,
 	}
 
@@ -108,7 +108,7 @@ func (h *CreateScheduleWithUoWHandler) Handle(ctx context.Context, cmd *CreateSc
 	}
 
 	// Create schedule aggregate
-	schedule, err := aggregate.NewSchedule(bookingUser, bookedShop, assignedPet, startTime, endTime)
+	schedule, err := aggregate.NewSchedule(bookingUser, bookedVendor, assignedPet, startTime, endTime)
 	if err != nil {
 		uow.Rollback(ctx)
 		return errors.NewValidationError(fmt.Sprintf("failed to create schedule: %v", err))

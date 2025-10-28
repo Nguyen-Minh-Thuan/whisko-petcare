@@ -34,6 +34,8 @@ jobs:
             PORT=${{ secrets.PORT }} \
             MONGO_URI="${{ secrets.MONGO_URI }}" \
             MONGO_DATABASE="${{ secrets.MONGO_DATABASE }}" \
+            JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}" \
+            JWT_TOKEN_DURATION="${{ secrets.JWT_TOKEN_DURATION }}" \
             PAYOS_CLIENT_ID="${{ secrets.PAYOS_CLIENT_ID }}" \
             PAYOS_API_KEY="${{ secrets.PAYOS_API_KEY }}" \
             PAYOS_CHECKSUM_KEY="${{ secrets.PAYOS_CHECKSUM_KEY }}" \

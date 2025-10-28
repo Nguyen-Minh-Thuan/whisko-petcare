@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 	"whisko-petcare/internal/domain/event"
+
 	"github.com/google/uuid"
 )
 
@@ -24,7 +25,7 @@ type BookingUser struct {
 	Address string `json:"address"`
 }
 
-type BookedShop struct {
+type BookedVendor struct {
 	ShopID         string           `json:"shop_id"`
 	Name           string           `json:"name"`
 	Location       string           `json:"location"`
@@ -49,7 +50,7 @@ const (
 type Schedule struct {
 	id               string
 	bookingUser      BookingUser
-	bookedShop       BookedShop
+	bookedShop       BookedVendor
 	assignedPet      PetAssigned
 	startTime        time.Time
 	endTime          time.Time
@@ -62,7 +63,7 @@ type Schedule struct {
 	uncommittedEvents []event.DomainEvent
 }
 
-func NewSchedule(bookingUser BookingUser, bookedShop BookedShop, assignedPet PetAssigned, startTime, endTime time.Time) (*Schedule, error) {
+func NewSchedule(bookingUser BookingUser, bookedShop BookedVendor, assignedPet PetAssigned, startTime, endTime time.Time) (*Schedule, error) {
 	if bookingUser.UserID == "" {
 		return nil, fmt.Errorf("userID cannot be empty")
 	}
@@ -192,7 +193,7 @@ func (s *Schedule) applyEvent(ev event.DomainEvent) error {
 		s.bookingUser = BookingUser{
 			UserID: e.UserID,
 		}
-		s.bookedShop = BookedShop{
+		s.bookedShop = BookedVendor{
 			ShopID: e.ShopID,
 		}
 		s.assignedPet = PetAssigned{
@@ -232,7 +233,7 @@ func (s *Schedule) applyEvent(ev event.DomainEvent) error {
 // Getters
 func (s *Schedule) ID() string              { return s.id }
 func (s *Schedule) BookingUser() BookingUser { return s.bookingUser }
-func (s *Schedule) BookedShop() BookedShop  { return s.bookedShop }
+func (s *Schedule) BookedShop() BookedVendor  { return s.bookedShop }
 func (s *Schedule) AssignedPet() PetAssigned { return s.assignedPet }
 func (s *Schedule) StartTime() time.Time    { return s.startTime }
 func (s *Schedule) EndTime() time.Time      { return s.endTime }
