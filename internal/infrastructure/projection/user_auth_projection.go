@@ -14,7 +14,7 @@ import (
 
 // UserAuthReadModel represents the read model for user authentication
 type UserAuthReadModel struct {
-	UserID         string     `bson:"user_id"`
+	UserID         string     `bson:"_id"`
 	Email          string     `bson:"email"`
 	HashedPassword string     `bson:"hashed_password"`
 	Role           string     `bson:"role"`
@@ -32,24 +32,26 @@ type MongoUserAuthRepository struct {
 // NewMongoUserAuthRepository creates a new MongoDB user auth repository
 func NewMongoUserAuthRepository(db *mongo.Database) *MongoUserAuthRepository {
 	return &MongoUserAuthRepository{
-		collection: db.Collection("user_auth"),
+		collection: db.Collection("users"), // Use same collection as user projection
 	}
 }
 
 // Save saves or updates user authentication
 func (r *MongoUserAuthRepository) Save(ctx context.Context, user *aggregate.User) error {
-	filter := bson.M{"user_id": user.ID()}
+	filter := bson.M{"_id": user.ID()}
 
 	update := bson.M{
 		"$set": bson.M{
-			"user_id":         user.ID(),
+			"_id":             user.ID(),
 			"email":           user.Email(),
 			"hashed_password": user.HashedPassword(),
 			"role":            string(user.Role()),
-			"created_at":      user.CreatedAt(),
 			"updated_at":      user.UpdatedAt(),
 			"last_login_at":   user.LastLoginAt(),
 			"is_active":       user.IsActive(),
+		},
+		"$setOnInsert": bson.M{
+			"created_at": user.CreatedAt(),
 		},
 	}
 
@@ -82,7 +84,7 @@ func (r *MongoUserAuthRepository) FindByEmail(ctx context.Context, email string)
 // FindByUserID finds user authentication by user ID
 func (r *MongoUserAuthRepository) FindByUserID(ctx context.Context, userID string) (*aggregate.User, error) {
 	var model UserAuthReadModel
-	err := r.collection.FindOne(ctx, bson.M{"user_id": userID}).Decode(&model)
+	err := r.collection.FindOne(ctx, bson.M{"_id": userID}).Decode(&model)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, fmt.Errorf("user not found")
@@ -95,7 +97,7 @@ func (r *MongoUserAuthRepository) FindByUserID(ctx context.Context, userID strin
 
 // Delete deletes user authentication
 func (r *MongoUserAuthRepository) Delete(ctx context.Context, userID string) error {
-	_, err := r.collection.DeleteOne(ctx, bson.M{"user_id": userID})
+	_, err := r.collection.DeleteOne(ctx, bson.M{"_id": userID})
 	if err != nil {
 		return fmt.Errorf("failed to delete user auth: %w", err)
 	}
