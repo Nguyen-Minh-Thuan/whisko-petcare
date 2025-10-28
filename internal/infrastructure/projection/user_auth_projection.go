@@ -17,6 +17,7 @@ type UserAuthReadModel struct {
 	UserID         string     `bson:"user_id"`
 	Email          string     `bson:"email"`
 	HashedPassword string     `bson:"hashed_password"`
+	Role           string     `bson:"role"`
 	CreatedAt      time.Time  `bson:"created_at"`
 	UpdatedAt      time.Time  `bson:"updated_at"`
 	LastLoginAt    *time.Time `bson:"last_login_at,omitempty"`
@@ -44,6 +45,7 @@ func (r *MongoUserAuthRepository) Save(ctx context.Context, user *aggregate.User
 			"user_id":         user.ID(),
 			"email":           user.Email(),
 			"hashed_password": user.HashedPassword(),
+			"role":            string(user.Role()),
 			"created_at":      user.CreatedAt(),
 			"updated_at":      user.UpdatedAt(),
 			"last_login_at":   user.LastLoginAt(),

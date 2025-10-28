@@ -9,6 +9,20 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// UserRole represents the role of a user
+type UserRole string
+
+const (
+	RoleAdmin  UserRole = "Admin"
+	RoleVendor UserRole = "Vendor"
+	RoleUser   UserRole = "User"
+)
+
+// IsValid checks if the role is valid
+func (r UserRole) IsValid() bool {
+	return r == RoleAdmin || r == RoleVendor || r == RoleUser
+}
+
 type User struct {
 	id             string
 	name           string
@@ -16,6 +30,7 @@ type User struct {
 	phone          string
 	address        string
 	hashedPassword string
+	role           UserRole
 	lastLoginAt    *time.Time
 	version        int
 	createdAt      time.Time
@@ -40,6 +55,7 @@ func NewUser(id, name, email string) (*User, error) {
 		id:        uuid.New().String(),
 		name:      name,
 		email:     email,
+		role:      RoleUser, // Default role
 		version:   1,
 		createdAt: time.Now(),
 		updatedAt: time.Now(),
@@ -60,6 +76,11 @@ func NewUser(id, name, email string) (*User, error) {
 
 // NewUserWithPassword creates a new user with authentication
 func NewUserWithPassword(id, name, email, password string) (*User, error) {
+	return NewUserWithPasswordAndRole(id, name, email, password, RoleUser)
+}
+
+// NewUserWithPasswordAndRole creates a new user with authentication and specific role
+func NewUserWithPasswordAndRole(id, name, email, password string, role UserRole) (*User, error) {
 	if id == "" {
 		return nil, fmt.Errorf("id cannot be empty")
 	}
@@ -75,6 +96,9 @@ func NewUserWithPassword(id, name, email, password string) (*User, error) {
 	if len(password) < 6 {
 		return nil, fmt.Errorf("password must be at least 6 characters")
 	}
+	if !role.IsValid() {
+		return nil, fmt.Errorf("invalid role: %s", role)
+	}
 
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -88,6 +112,7 @@ func NewUserWithPassword(id, name, email, password string) (*User, error) {
 		name:           name,
 		email:          email,
 		hashedPassword: string(hashedPassword),
+		role:           role,
 		version:        1,
 		createdAt:      now,
 		updatedAt:      now,
@@ -229,6 +254,31 @@ func (u *User) Activate() {
 	u.updatedAt = time.Now()
 }
 
+// UpdateRole updates the user's role (admin only)
+func (u *User) UpdateRole(newRole UserRole) error {
+	if !newRole.IsValid() {
+		return fmt.Errorf("invalid role: %s", newRole)
+	}
+	u.role = newRole
+	u.updatedAt = time.Now()
+	return nil
+}
+
+// HasRole checks if user has a specific role
+func (u *User) HasRole(role UserRole) bool {
+	return u.role == role
+}
+
+// IsAdmin checks if user is an admin
+func (u *User) IsAdmin() bool {
+	return u.role == RoleAdmin
+}
+
+// IsVendor checks if user is a vendor
+func (u *User) IsVendor() bool {
+	return u.role == RoleVendor
+}
+
 func (u *User) GetUncommittedEvents() []event.DomainEvent {
 	return u.uncommittedEvents
 }
@@ -285,6 +335,7 @@ func (u *User) Email() string           { return u.email }
 func (u *User) Phone() string           { return u.phone }
 func (u *User) Address() string         { return u.address }
 func (u *User) HashedPassword() string  { return u.hashedPassword }
+func (u *User) Role() UserRole          { return u.role }
 func (u *User) LastLoginAt() *time.Time { return u.lastLoginAt }
 func (u *User) Version() int            { return u.version }
 func (u *User) CreatedAt() time.Time    { return u.createdAt }

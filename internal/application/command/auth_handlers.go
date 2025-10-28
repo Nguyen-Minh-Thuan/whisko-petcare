@@ -51,8 +51,17 @@ func (h *RegisterUserHandler) Handle(ctx context.Context, cmd *RegisterUserComma
 	// Create user ID
 	userID := uuid.New().String()
 
-	// Create user aggregate with password
-	user, err := aggregate.NewUserWithPassword(userID, cmd.Name, cmd.Email, cmd.Password)
+	// Determine role (default to User if not specified or invalid)
+	role := aggregate.RoleUser
+	if cmd.Role != "" {
+		requestedRole := aggregate.UserRole(cmd.Role)
+		if requestedRole.IsValid() {
+			role = requestedRole
+		}
+	}
+
+	// Create user aggregate with password and role
+	user, err := aggregate.NewUserWithPasswordAndRole(userID, cmd.Name, cmd.Email, cmd.Password, role)
 	if err != nil {
 		return nil, errors.NewValidationError(fmt.Sprintf("failed to create user: %v", err))
 	}
@@ -92,6 +101,7 @@ func (h *RegisterUserHandler) Handle(ctx context.Context, cmd *RegisterUserComma
 		UserID: userID,
 		Email:  cmd.Email,
 		Name:   cmd.Name,
+		Role:   string(role),
 		Token:  token,
 	}, nil
 }
@@ -149,6 +159,7 @@ func (h *LoginHandler) Handle(ctx context.Context, cmd *LoginCommand) (*LoginRes
 		UserID: user.ID(),
 		Email:  userAuthModel.Email,
 		Name:   user.Name(),
+		Role:   string(user.Role()),
 		Token:  token,
 	}, nil
 }

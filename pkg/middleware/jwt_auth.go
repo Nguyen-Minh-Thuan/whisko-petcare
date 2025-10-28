@@ -52,6 +52,7 @@ func JWTAuthMiddleware(jwtManager *jwtutil.JWTManager) func(http.Handler) http.H
 			ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
 			ctx = context.WithValue(ctx, EmailKey, claims.Email)
 			ctx = context.WithValue(ctx, NameKey, claims.Name)
+			ctx = context.WithValue(ctx, "user_role", claims.Role)
 
 			// Call next handler with updated context
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -73,6 +74,7 @@ func OptionalJWTAuthMiddleware(jwtManager *jwtutil.JWTManager) func(http.Handler
 						ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
 						ctx = context.WithValue(ctx, EmailKey, claims.Email)
 						ctx = context.WithValue(ctx, NameKey, claims.Name)
+						ctx = context.WithValue(ctx, "user_role", claims.Role)
 						r = r.WithContext(ctx)
 					}
 				}
@@ -89,16 +91,34 @@ func GetUserIDFromContext(ctx context.Context) (string, bool) {
 	return userID, ok
 }
 
+// GetUserID is a shorter alias for GetUserIDFromContext
+func GetUserID(ctx context.Context) string {
+	userID, _ := GetUserIDFromContext(ctx)
+	return userID
+}
+
 // GetEmailFromContext extracts email from context
 func GetEmailFromContext(ctx context.Context) (string, bool) {
 	email, ok := ctx.Value(EmailKey).(string)
 	return email, ok
 }
 
+// GetEmail is a shorter alias for GetEmailFromContext
+func GetEmail(ctx context.Context) string {
+	email, _ := GetEmailFromContext(ctx)
+	return email
+}
+
 // GetNameFromContext extracts name from context
 func GetNameFromContext(ctx context.Context) (string, bool) {
 	name, ok := ctx.Value(NameKey).(string)
 	return name, ok
+}
+
+// GetName is a shorter alias for GetNameFromContext
+func GetName(ctx context.Context) string {
+	name, _ := GetNameFromContext(ctx)
+	return name
 }
 
 // sendUnauthorized sends an unauthorized response

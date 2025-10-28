@@ -41,6 +41,7 @@ func (c *HTTPAuthController) Register(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 		Phone    string `json:"phone"`
 		Address  string `json:"address"`
+		Role     string `json:"role"` // Optional, defaults to "User"
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -73,8 +74,17 @@ func (c *HTTPAuthController) Register(w http.ResponseWriter, r *http.Request) {
 	// Create user ID
 	userID := uuid.New().String()
 
-	// Create user with password
-	user, err := aggregate.NewUserWithPassword(userID, req.Name, req.Email, req.Password)
+	// Determine role (default to User if not specified or invalid)
+	role := aggregate.RoleUser
+	if req.Role != "" {
+		requestedRole := aggregate.UserRole(req.Role)
+		if requestedRole.IsValid() {
+			role = requestedRole
+		}
+	}
+
+	// Create user with password and role
+	user, err := aggregate.NewUserWithPasswordAndRole(userID, req.Name, req.Email, req.Password, role)
 	if err != nil {
 		response.SendBadRequest(w, r, err.Error())
 		return
@@ -88,7 +98,7 @@ func (c *HTTPAuthController) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate JWT token
-	token, err := c.jwtManager.GenerateToken(userID, req.Email, req.Name)
+	token, err := c.jwtManager.GenerateToken(userID, req.Email, req.Name, string(role))
 	if err != nil {
 		response.SendInternalError(w, r, "Failed to generate token")
 		return
@@ -98,6 +108,7 @@ func (c *HTTPAuthController) Register(w http.ResponseWriter, r *http.Request) {
 		"user_id": userID,
 		"email":   req.Email,
 		"name":    req.Name,
+		"role":    string(role),
 		"token":   token,
 	}
 
@@ -136,8 +147,8 @@ func (c *HTTPAuthController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate JWT token
-	token, err := c.jwtManager.GenerateToken(userAuthModel.UserID, userAuthModel.Email, req.Email)
+	// Generate JWT token (use email as name temporarily, will be fixed)
+	token, err := c.jwtManager.GenerateToken(userAuthModel.UserID, userAuthModel.Email, userAuthModel.Email, userAuthModel.Role)
 	if err != nil {
 		response.SendInternalError(w, r, "Failed to generate token")
 		return
@@ -146,6 +157,7 @@ func (c *HTTPAuthController) Login(w http.ResponseWriter, r *http.Request) {
 	resp := map[string]interface{}{
 		"user_id": userAuthModel.UserID,
 		"email":   userAuthModel.Email,
+		"role":    userAuthModel.Role,
 		"token":   token,
 	}
 

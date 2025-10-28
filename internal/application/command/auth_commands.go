@@ -11,6 +11,7 @@ type RegisterUserCommand struct {
 	Password string `json:"password"`
 	Phone    string `json:"phone,omitempty"`
 	Address  string `json:"address,omitempty"`
+	Role     string `json:"role,omitempty"` // Optional, defaults to "User"
 }
 
 // RegisterUserResponse represents the response after user registration
@@ -18,6 +19,7 @@ type RegisterUserResponse struct {
 	UserID string `json:"user_id"`
 	Email  string `json:"email"`
 	Name   string `json:"name"`
+	Role   string `json:"role"`
 	Token  string `json:"token"`
 }
 
@@ -32,6 +34,7 @@ type LoginResponse struct {
 	UserID string `json:"user_id"`
 	Email  string `json:"email"`
 	Name   string `json:"name"`
+	Role   string `json:"role"`
 	Token  string `json:"token"`
 }
 
