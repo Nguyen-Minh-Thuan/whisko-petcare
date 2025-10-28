@@ -19,6 +19,7 @@ import (
 	"whisko-petcare/internal/infrastructure/mongo"
 	"whisko-petcare/internal/infrastructure/payos"
 	"whisko-petcare/internal/infrastructure/projection"
+	jwtutil "whisko-petcare/pkg/jwt"
 
 	"github.com/joho/godotenv"
 )
@@ -57,7 +58,24 @@ func main() {
 	// Initialize infrastructure
 	database := mongoClient.GetDatabase()
 	eventBus := bus.NewInMemoryEventBus()
-	userProjection := projection.NewMongoUserProjection(database)
+	
+	// Create concrete MongoDB user projection
+	concreteUserProjection := projection.NewMongoUserProjection(database).(*projection.MongoUserProjection)
+	userProjection := projection.UserProjection(concreteUserProjection)
+
+	// Initialize JWT Manager
+	jwtSecretKey := getEnv("JWT_SECRET_KEY", "your-super-secret-jwt-key-change-this-in-production-min-32-characters")
+	tokenDuration, err := time.ParseDuration(getEnv("JWT_TOKEN_DURATION", "24h"))
+	if err != nil {
+		log.Printf("Invalid JWT_TOKEN_DURATION, using default 24h: %v", err)
+		tokenDuration = 24 * time.Hour
+	}
+	jwtManager := jwtutil.NewJWTManager(jwtSecretKey, tokenDuration)
+	log.Println("✅ JWT Manager initialized")
+
+	// Initialize User Auth Repository
+	userAuthRepo := projection.NewMongoUserAuthRepository(database)
+	log.Println("✅ User Auth Repository initialized")
 
 	// Initialize PayOS service
 	payOSConfig := &payos.Config{
@@ -340,6 +358,7 @@ func main() {
 
 	// Initialize HTTP controllers
 	userController := httpHandler.NewHTTPUserController(userService)
+	authController := httpHandler.NewHTTPAuthController(userAuthRepo, concreteUserProjection, jwtManager)
 	paymentController := httpHandler.NewHTTPPaymentController(
 		createPaymentHandler,
 		cancelPaymentHandler,
@@ -617,6 +636,31 @@ func main() {
 		case http.MethodDelete:
 			vendorStaffController.DeleteVendorStaff(w, r)
 		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Auth routes
+	mux.HandleFunc("/auth/register", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			authController.Register(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/auth/login", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			authController.Login(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/auth/change-password", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			authController.ChangePassword(w, r)
+		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
