@@ -15,15 +15,19 @@ import (
 
 // UserReadModel represents the read model for users
 type UserReadModel struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Email     string    `json:"email"`
-	Phone     string    `json:"phone"`
-	Address   string    `json:"address"`
-	Version   int       `json:"version"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	IsDeleted bool      `json:"is_deleted"`
+	ID             string     `json:"id" bson:"_id"`
+	Name           string     `json:"name" bson:"name"`
+	Email          string     `json:"email" bson:"email"`
+	Phone          string     `json:"phone" bson:"phone"`
+	Address        string     `json:"address" bson:"address"`
+	HashedPassword string     `json:"-" bson:"hashed_password,omitempty"` // Hidden from JSON
+	Role           string     `json:"role,omitempty" bson:"role,omitempty"`
+	LastLoginAt    *time.Time `json:"last_login_at,omitempty" bson:"last_login_at,omitempty"`
+	IsActive       bool       `json:"is_active,omitempty" bson:"is_active,omitempty"`
+	Version        int        `json:"version" bson:"version"`
+	CreatedAt      time.Time  `json:"created_at" bson:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at" bson:"updated_at"`
+	IsDeleted      bool       `json:"is_deleted" bson:"is_deleted"`
 }
 
 // UserProjection defines operations for user read model
