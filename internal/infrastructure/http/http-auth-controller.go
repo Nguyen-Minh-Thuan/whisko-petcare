@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"whisko-petcare/internal/application/command"
 	"whisko-petcare/internal/domain/aggregate"
 	"whisko-petcare/internal/infrastructure/projection"
 	jwtutil "whisko-petcare/pkg/jwt"
@@ -15,21 +16,27 @@ import (
 
 // HTTPAuthController handles HTTP requests for authentication
 type HTTPAuthController struct {
-	userAuthRepo   *projection.MongoUserAuthRepository
-	userProjection *projection.MongoUserProjection
-	jwtManager     *jwtutil.JWTManager
+	registerHandler       *command.RegisterUserWithUoWHandler
+	changePasswordHandler *command.ChangeUserPasswordWithUoWHandler
+	recordLoginHandler    *command.RecordUserLoginWithUoWHandler
+	userProjection        *projection.MongoUserProjection
+	jwtManager            *jwtutil.JWTManager
 }
 
 // NewHTTPAuthController creates a new HTTP auth controller
 func NewHTTPAuthController(
-	userAuthRepo *projection.MongoUserAuthRepository,
+	registerHandler *command.RegisterUserWithUoWHandler,
+	changePasswordHandler *command.ChangeUserPasswordWithUoWHandler,
+	recordLoginHandler *command.RecordUserLoginWithUoWHandler,
 	userProjection *projection.MongoUserProjection,
 	jwtManager *jwtutil.JWTManager,
 ) *HTTPAuthController {
 	return &HTTPAuthController{
-		userAuthRepo:   userAuthRepo,
-		userProjection: userProjection,
-		jwtManager:     jwtManager,
+		registerHandler:       registerHandler,
+		changePasswordHandler: changePasswordHandler,
+		recordLoginHandler:    recordLoginHandler,
+		userProjection:        userProjection,
+		jwtManager:            jwtManager,
 	}
 }
 
@@ -61,7 +68,7 @@ func (c *HTTPAuthController) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if email exists
-	exists, err := c.userAuthRepo.ExistsByEmail(r.Context(), req.Email)
+	exists, err := c.userProjection.ExistsByEmail(r.Context(), req.Email)
 	if err != nil {
 		response.SendInternalError(w, r, "Failed to check email")
 		return
@@ -83,17 +90,18 @@ func (c *HTTPAuthController) Register(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Create user with password and role
-	user, err := aggregate.NewUserWithPasswordAndRole(userID, req.Name, req.Email, req.Password, role)
-	if err != nil {
-		response.SendBadRequest(w, r, err.Error())
-		return
+	// Register user using command handler
+	registerCmd := &command.RegisterUser{
+		UserID:   userID,
+		Name:     req.Name,
+		Email:    req.Email,
+		Password: req.Password,
+		Role:     string(role),
 	}
 
-	// Save user auth
-	err = c.userAuthRepo.Save(r.Context(), user)
+	err = c.registerHandler.Handle(r.Context(), registerCmd)
 	if err != nil {
-		response.SendInternalError(w, r, "Failed to save user")
+		response.SendInternalError(w, r, "Failed to register user")
 		return
 	}
 
@@ -134,30 +142,40 @@ func (c *HTTPAuthController) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Find user by email
-	userAuthModel, err := c.userAuthRepo.GetByEmail(r.Context(), req.Email)
+	userModel, err := c.userProjection.GetByEmail(r.Context(), req.Email)
 	if err != nil {
 		response.SendBadRequest(w, r, "Invalid email or password")
 		return
 	}
 
 	// Verify password
-	err = bcrypt.CompareHashAndPassword([]byte(userAuthModel.HashedPassword), []byte(req.Password))
+	err = bcrypt.CompareHashAndPassword([]byte(userModel.HashedPassword), []byte(req.Password))
 	if err != nil {
 		response.SendBadRequest(w, r, "Invalid email or password")
 		return
 	}
 
-	// Generate JWT token (use email as name temporarily, will be fixed)
-	token, err := c.jwtManager.GenerateToken(userAuthModel.UserID, userAuthModel.Email, userAuthModel.Email, userAuthModel.Role)
+	// Record login through event sourcing
+	loginCmd := &command.RecordUserLogin{
+		UserID: userModel.ID,
+	}
+	if err := c.recordLoginHandler.Handle(r.Context(), loginCmd); err != nil {
+		// Log error but don't fail login
+		// In production, use proper logger
+	}
+
+	// Generate JWT token
+	token, err := c.jwtManager.GenerateToken(userModel.ID, userModel.Email, userModel.Name, userModel.Role)
 	if err != nil {
 		response.SendInternalError(w, r, "Failed to generate token")
 		return
 	}
 
 	resp := map[string]interface{}{
-		"user_id": userAuthModel.UserID,
-		"email":   userAuthModel.Email,
-		"role":    userAuthModel.Role,
+		"user_id": userModel.ID,
+		"email":   userModel.Email,
+		"name":    userModel.Name,
+		"role":    userModel.Role,
 		"token":   token,
 	}
 
@@ -188,30 +206,18 @@ func (c *HTTPAuthController) ChangePassword(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Find user auth
-	userAuthModel, err := c.userAuthRepo.GetByEmail(r.Context(), req.UserID)
-	if err != nil {
-		response.SendBadRequest(w, r, "User not found")
-		return
+	// Change password through command handler (it will verify old password internally)
+	changeCmd := &command.ChangeUserPassword{
+		UserID:      req.UserID,
+		OldPassword: req.OldPassword,
+		NewPassword: req.NewPassword,
 	}
 
-	// Verify old password
-	err = bcrypt.CompareHashAndPassword([]byte(userAuthModel.HashedPassword), []byte(req.OldPassword))
+	err := c.changePasswordHandler.Handle(r.Context(), changeCmd)
 	if err != nil {
-		response.SendBadRequest(w, r, "Invalid old password")
+		response.SendBadRequest(w, r, err.Error())
 		return
 	}
-
-	// Hash new password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
-	if err != nil {
-		response.SendInternalError(w, r, "Failed to process new password")
-		return
-	}
-
-	// Update password (simplified - you'd use aggregate properly)
-	userAuthModel.HashedPassword = string(hashedPassword)
-	// Save updated auth...
 
 	response.SendSuccess(w, r, map[string]string{"message": "Password changed successfully"})
 }
