@@ -63,12 +63,15 @@ func NewUser(id, name, email string) (*User, error) {
 	}
 
 	user.raiseEvent(&event.UserCreated{
-		UserID:    id,
-		Name:      name,
-		Email:     email,
-		Phone:     user.phone,
-		Address:   user.address,
-		Timestamp: user.createdAt,
+		UserID:         id,
+		Name:           name,
+		Email:          email,
+		Phone:          user.phone,
+		Address:        user.address,
+		HashedPassword: user.hashedPassword, // Empty for non-auth users
+		Role:           string(user.role),
+		IsActive:       user.isActive,
+		Timestamp:      user.createdAt,
 	})
 
 	return user, nil
@@ -120,12 +123,15 @@ func NewUserWithPasswordAndRole(id, name, email, password string, role UserRole)
 	}
 
 	user.raiseEvent(&event.UserCreated{
-		UserID:    id,
-		Name:      name,
-		Email:     email,
-		Phone:     user.phone,
-		Address:   user.address,
-		Timestamp: user.createdAt,
+		UserID:         id,
+		Name:           name,
+		Email:          email,
+		Phone:          user.phone,
+		Address:        user.address,
+		HashedPassword: user.hashedPassword,
+		Role:           string(user.role),
+		IsActive:       user.isActive,
+		Timestamp:      user.createdAt,
 	})
 
 	return user, nil
@@ -216,6 +222,15 @@ func (u *User) ChangePassword(oldPassword, newPassword string) error {
 
 	u.hashedPassword = string(hashedPassword)
 	u.updatedAt = time.Now()
+	u.version++
+
+	u.raiseEvent(&event.UserPasswordChanged{
+		UserID:         u.id,
+		HashedPassword: u.hashedPassword,
+		EventVersion:   u.version,
+		Timestamp:      u.updatedAt,
+	})
+
 	return nil
 }
 
@@ -232,6 +247,15 @@ func (u *User) SetPassword(password string) error {
 
 	u.hashedPassword = string(hashedPassword)
 	u.updatedAt = time.Now()
+	u.version++
+
+	u.raiseEvent(&event.UserPasswordChanged{
+		UserID:         u.id,
+		HashedPassword: u.hashedPassword,
+		EventVersion:   u.version,
+		Timestamp:      u.updatedAt,
+	})
+
 	return nil
 }
 
@@ -240,6 +264,18 @@ func (u *User) UpdateLastLogin() {
 	now := time.Now()
 	u.lastLoginAt = &now
 	u.updatedAt = now
+	u.version++
+
+	u.raiseEvent(&event.UserLoggedIn{
+		UserID:       u.id,
+		EventVersion: u.version,
+		Timestamp:    now,
+	})
+}
+
+// SetHashedPassword sets the hashed password directly (for repository reconstruction)
+func (u *User) SetHashedPassword(hashedPassword string) {
+	u.hashedPassword = hashedPassword
 }
 
 // Deactivate deactivates the user account
@@ -261,6 +297,15 @@ func (u *User) UpdateRole(newRole UserRole) error {
 	}
 	u.role = newRole
 	u.updatedAt = time.Now()
+	u.version++
+
+	u.raiseEvent(&event.UserRoleUpdated{
+		UserID:       u.id,
+		Role:         string(u.role),
+		EventVersion: u.version,
+		Timestamp:    u.updatedAt,
+	})
+
 	return nil
 }
 

@@ -40,6 +40,9 @@ type UserProjection interface {
 	HandleUserCreated(ctx context.Context, event *event.UserCreated) error
 	HandleUserProfileUpdated(ctx context.Context, event *event.UserProfileUpdated) error
 	HandleUserContactUpdated(ctx context.Context, event *event.UserContactUpdated) error
+	HandleUserPasswordChanged(ctx context.Context, event *event.UserPasswordChanged) error
+	HandleUserRoleUpdated(ctx context.Context, event *event.UserRoleUpdated) error
+	HandleUserLoggedIn(ctx context.Context, event *event.UserLoggedIn) error
 	HandleUserDeleted(ctx context.Context, event *event.UserDeleted) error
 }
 
@@ -166,15 +169,18 @@ func (p *MongoUserProjection) Search(ctx context.Context, name, email string) ([
 // Event handlers
 func (p *MongoUserProjection) HandleUserCreated(ctx context.Context, event *event.UserCreated) error {
 	userReadModel := bson.M{
-		"_id":        event.UserID,
-		"name":       event.Name,
-		"email":      event.Email,
-		"phone":      event.Phone,
-		"address":    event.Address,
-		"version":    1,
-		"created_at": event.Timestamp,
-		"updated_at": event.Timestamp,
-		"is_deleted": false,
+		"_id":             event.UserID,
+		"name":            event.Name,
+		"email":           event.Email,
+		"phone":           event.Phone,
+		"address":         event.Address,
+		"hashed_password": event.HashedPassword,
+		"role":            event.Role,
+		"is_active":       event.IsActive,
+		"version":         1,
+		"created_at":      event.Timestamp,
+		"updated_at":      event.Timestamp,
+		"is_deleted":      false,
 	}
 
 	_, err := p.collection.InsertOne(ctx, userReadModel)
@@ -226,6 +232,72 @@ func (p *MongoUserProjection) HandleUserContactUpdated(ctx context.Context, even
 
 	if result.MatchedCount == 0 {
 		return fmt.Errorf("user not found for contact update")
+	}
+
+	return nil
+}
+
+func (p *MongoUserProjection) HandleUserPasswordChanged(ctx context.Context, event *event.UserPasswordChanged) error {
+	filter := bson.M{"_id": event.UserID}
+	update := bson.M{
+		"$set": bson.M{
+			"hashed_password": event.HashedPassword,
+			"version":         event.EventVersion,
+			"updated_at":      event.Timestamp,
+		},
+	}
+
+	result, err := p.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update user password projection: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("user not found for password update")
+	}
+
+	return nil
+}
+
+func (p *MongoUserProjection) HandleUserRoleUpdated(ctx context.Context, event *event.UserRoleUpdated) error {
+	filter := bson.M{"_id": event.UserID}
+	update := bson.M{
+		"$set": bson.M{
+			"role":       event.Role,
+			"version":    event.EventVersion,
+			"updated_at": event.Timestamp,
+		},
+	}
+
+	result, err := p.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update user role projection: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("user not found for role update")
+	}
+
+	return nil
+}
+
+func (p *MongoUserProjection) HandleUserLoggedIn(ctx context.Context, event *event.UserLoggedIn) error {
+	filter := bson.M{"_id": event.UserID}
+	update := bson.M{
+		"$set": bson.M{
+			"last_login_at": event.Timestamp,
+			"version":       event.EventVersion,
+			"updated_at":    event.Timestamp,
+		},
+	}
+
+	result, err := p.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update user login projection: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("user not found for login update")
 	}
 
 	return nil
@@ -312,3 +384,46 @@ func getTimePointerFromResult(m bson.M, key string) *time.Time {
 	}
 	return nil
 }
+
+// Authentication query methods (read-only for projections)
+
+// GetByEmail returns the user read model by email
+func (p *MongoUserProjection) GetByEmail(ctx context.Context, email string) (*UserReadModel, error) {
+	var result bson.M
+	err := p.collection.FindOne(ctx, bson.M{"email": email, "is_active": true}).Decode(&result)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("user not found")
+		}
+		return nil, fmt.Errorf("failed to find user: %w", err)
+	}
+
+	user := &UserReadModel{
+		ID:             getStringFromResult(result, "_id"),
+		Name:           getStringFromResult(result, "name"),
+		Email:          getStringFromResult(result, "email"),
+		Phone:          getStringFromResult(result, "phone"),
+		Address:        getStringFromResult(result, "address"),
+		HashedPassword: getStringFromResult(result, "hashed_password"),
+		Role:           getStringFromResult(result, "role"),
+		LastLoginAt:    getTimePointerFromResult(result, "last_login_at"),
+		IsActive:       getBoolFromResult(result, "is_active"),
+		Version:        getIntFromResult(result, "version"),
+		CreatedAt:      getTimeFromResult(result, "created_at"),
+		UpdatedAt:      getTimeFromResult(result, "updated_at"),
+		IsDeleted:      getBoolFromResult(result, "is_deleted"),
+	}
+
+	return user, nil
+}
+
+// ExistsByEmail checks if email already exists
+func (p *MongoUserProjection) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	count, err := p.collection.CountDocuments(ctx, bson.M{"email": email})
+	if err != nil {
+		return false, fmt.Errorf("failed to check email existence: %w", err)
+	}
+	return count > 0, nil
+}
+
+

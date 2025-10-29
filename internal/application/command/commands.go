@@ -34,6 +34,27 @@ type DeleteUser struct {
 	UserID string `json:"user_id"`
 }
 
+// RegisterUser represents a command to register a new user with authentication
+type RegisterUser struct {
+	UserID   string `json:"user_id"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Role     string `json:"role"`
+}
+
+// ChangeUserPassword represents a command to change user password
+type ChangeUserPassword struct {
+	UserID      string `json:"user_id"`
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+// RecordUserLogin represents a command to record user login
+type RecordUserLogin struct {
+	UserID string `json:"user_id"`
+}
+
 // ============================================
 // Payment Commands
 // ============================================

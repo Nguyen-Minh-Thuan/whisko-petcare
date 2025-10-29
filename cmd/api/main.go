@@ -73,10 +73,6 @@ func main() {
 	jwtManager := jwtutil.NewJWTManager(jwtSecretKey, tokenDuration)
 	log.Println("✅ JWT Manager initialized")
 
-	// Initialize User Auth Repository
-	userAuthRepo := projection.NewMongoUserAuthRepository(database)
-	log.Println("✅ User Auth Repository initialized")
-
 	// Initialize PayOS service
 	payOSConfig := &payos.Config{
 		ClientID:    getEnv("PAYOS_CLIENT_ID", ""),
@@ -121,6 +117,21 @@ func main() {
 	eventBus.Subscribe("UserDeleted", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
 			return userProjection.HandleUserDeleted(ctx, e.(*event.UserDeleted))
+		}))
+
+	eventBus.Subscribe("UserPasswordChanged", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return userProjection.HandleUserPasswordChanged(ctx, e.(*event.UserPasswordChanged))
+		}))
+
+	eventBus.Subscribe("UserRoleUpdated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return userProjection.HandleUserRoleUpdated(ctx, e.(*event.UserRoleUpdated))
+		}))
+
+	eventBus.Subscribe("UserLoggedIn", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return userProjection.HandleUserLoggedIn(ctx, e.(*event.UserLoggedIn))
 		}))
 
 	// Subscribe payment projection to events
@@ -356,9 +367,14 @@ func main() {
 		log.Fatal("Failed to start event bus:", err)
 	}
 
+	// Initialize auth command handlers
+	registerHandler := command.NewRegisterUserWithUoWHandler(uowFactory, eventBus)
+	changePasswordHandler := command.NewChangeUserPasswordWithUoWHandler(uowFactory, eventBus)
+	recordLoginHandler := command.NewRecordUserLoginWithUoWHandler(uowFactory, eventBus)
+
 	// Initialize HTTP controllers
 	userController := httpHandler.NewHTTPUserController(userService)
-	authController := httpHandler.NewHTTPAuthController(userAuthRepo, concreteUserProjection, jwtManager)
+	authController := httpHandler.NewHTTPAuthController(registerHandler, changePasswordHandler, recordLoginHandler, concreteUserProjection, jwtManager)
 	paymentController := httpHandler.NewHTTPPaymentController(
 		createPaymentHandler,
 		cancelPaymentHandler,
