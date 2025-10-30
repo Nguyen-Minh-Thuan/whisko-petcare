@@ -53,26 +53,30 @@ func (r *MongoUserRepository) Save(ctx context.Context, user *aggregate.User) er
 		ctxToUse = mongo.NewSessionContext(ctx, r.session)
 	}
 
-	// Prepare entity document for MongoDB
+	// Save entity snapshot to users collection for fast reads (includes ALL fields)
 	entityDoc := bson.M{
-		"_id":        user.GetID(),
-		"version":    user.GetVersion(),
-		"name":       user.Name(),
-		"email":      user.Email(),
-		"phone":      user.Phone(),
-		"address":    user.Address(),
-		"created_at": user.CreatedAt(),
-		"updated_at": user.UpdatedAt(),
+		"_id":             user.GetID(),
+		"version":         user.GetVersion(),
+		"name":            user.Name(),
+		"email":           user.Email(),
+		"phone":           user.Phone(),
+		"address":         user.Address(),
+		"hashed_password": user.HashedPassword(),
+		"role":            string(user.Role()),
+		"is_active":       user.IsActive(),
+		"last_login_at":   user.LastLoginAt(),
+		"created_at":      user.CreatedAt(),
+		"updated_at":      user.UpdatedAt(),
 	}
 
-	// Upsert entity document to MongoDB
+	// Upsert entity document - this is the entity snapshot for fast reads
 	opts := options.Update().SetUpsert(true)
 	_, err := r.entityCollection.UpdateOne(ctxToUse, bson.M{"_id": user.GetID()}, bson.M{"$set": entityDoc}, opts)
 	if err != nil {
-		return fmt.Errorf("failed to save user to MongoDB: %w", err)
+		return fmt.Errorf("failed to save user entity: %w", err)
 	}
 
-	// Save uncommitted events to MongoDB
+	// Also save events to event store for full history
 	events := user.GetUncommittedEvents()
 	if len(events) > 0 {
 		var eventDocs []interface{}
@@ -87,9 +91,9 @@ func (r *MongoUserRepository) Save(ctx context.Context, user *aggregate.User) er
 			eventDocs = append(eventDocs, eventDoc)
 		}
 
-		_, err = r.eventCollection.InsertMany(ctxToUse, eventDocs)
+		_, err := r.eventCollection.InsertMany(ctxToUse, eventDocs)
 		if err != nil {
-			return fmt.Errorf("failed to save events to MongoDB: %w", err)
+			return fmt.Errorf("failed to save events to event store: %w", err)
 		}
 
 		// Mark events as committed
@@ -115,14 +119,35 @@ func (r *MongoUserRepository) GetByID(ctx context.Context, id string) (*aggregat
 		return nil, fmt.Errorf("failed to find user: %w", err)
 	}
 
-	// Reconstruct user from MongoDB data
-	user, err := aggregate.NewUser(
-		id,
-		getString(result, "name"),
-		getString(result, "email"),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to reconstruct user: %w", err)
+	// Check if user has auth fields (hashed_password) - use auth constructor
+	hashedPassword := getString(result, "hashed_password")
+	role := getString(result, "role")
+	
+	var user *aggregate.User
+	if hashedPassword != "" && role != "" {
+		// User with authentication - use dummy password that passes validation
+		user, err = aggregate.NewUserWithPasswordAndRole(
+			id,
+			getString(result, "name"),
+			getString(result, "email"),
+			"dummy123", // Dummy password (6+ chars) - will be overridden with actual hash
+			aggregate.UserRole(role),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to reconstruct user: %w", err)
+		}
+		// Override with actual hashed password from DB (already hashed)
+		user.SetHashedPassword(hashedPassword)
+	} else {
+		// User without authentication
+		user, err = aggregate.NewUser(
+			id,
+			getString(result, "name"),
+			getString(result, "email"),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to reconstruct user: %w", err)
+		}
 	}
 
 	// Update contact info if present
