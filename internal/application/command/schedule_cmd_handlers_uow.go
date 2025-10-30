@@ -61,43 +61,6 @@ func (h *CreateScheduleWithUoWHandler) Handle(ctx context.Context, cmd *CreateSc
 		return errors.NewValidationError(fmt.Sprintf("invalid end_time format: %v", err))
 	}
 
-	// Create booking user
-	bookingUser := aggregate.BookingUser{
-		UserID:  cmd.UserID,
-		Name:    cmd.BookingUser.Name,
-		Email:   cmd.BookingUser.Email,
-		Phone:   cmd.BookingUser.Phone,
-		Address: cmd.BookingUser.Address,
-	}
-
-	// Create booked services
-	var bookedServices []aggregate.BookedServices
-	for _, s := range cmd.BookedVendor.Services {
-		bookedServices = append(bookedServices, aggregate.BookedServices{
-			ServiceID: s.ServiceID,
-			Name:      s.Name,
-		})
-	}
-
-	// Create booked shop
-	bookedVendor := aggregate.BookedVendor{
-		ShopID:         cmd.VendorID,
-		Name:           cmd.BookedVendor.Name,
-		Location:       cmd.BookedVendor.Location,
-		Phone:          cmd.BookedVendor.Phone,
-		BookedServices: bookedServices,
-	}
-
-	// Create assigned pet
-	assignedPet := aggregate.PetAssigned{
-		PetID:   cmd.PetID,
-		Name:    cmd.AssignedPet.Name,
-		Species: cmd.AssignedPet.Species,
-		Breed:   cmd.AssignedPet.Breed,
-		Age:     cmd.AssignedPet.Age,
-		Weight:  cmd.AssignedPet.Weight,
-	}
-
 	// Create unit of work
 	uow := h.uowFactory.CreateUnitOfWork()
 	defer uow.Close()
@@ -107,7 +70,80 @@ func (h *CreateScheduleWithUoWHandler) Handle(ctx context.Context, cmd *CreateSc
 		return errors.NewInternalError(fmt.Sprintf("failed to begin transaction: %v", err))
 	}
 
-	// Create schedule aggregate
+	// Validate that User exists
+	userRepo := uow.UserRepository()
+	user, err := userRepo.GetByID(ctx, cmd.UserID)
+	if err != nil {
+		uow.Rollback(ctx)
+		return errors.NewValidationError(fmt.Sprintf("user not found: %v", err))
+	}
+	// Create booking user with real data from User aggregate
+	bookingUser := aggregate.BookingUser{
+		UserID:  cmd.UserID,
+		Name:    user.Name(),
+		Email:   user.Email(),
+		Phone:   user.Phone(),
+		Address: user.Address(),
+	}
+
+	// Validate that Vendor/Shop exists
+	vendorRepo := uow.VendorRepository()
+	vendor, err := vendorRepo.GetByID(ctx, cmd.VendorID)
+	if err != nil {
+		uow.Rollback(ctx)
+		return errors.NewValidationError(fmt.Sprintf("vendor/shop not found: %v", err))
+	}
+	// Validate that Pet exists and belongs to the user
+	petRepo := uow.PetRepository()
+	pet, err := petRepo.GetByID(ctx, cmd.PetID)
+	if err != nil {
+		uow.Rollback(ctx)
+		return errors.NewValidationError(fmt.Sprintf("pet not found: %v", err))
+	}
+	if pet.UserID() != cmd.UserID {
+		uow.Rollback(ctx)
+		return errors.NewValidationError("pet does not belong to this user")
+	}
+	// Create assigned pet with real data
+	assignedPet := aggregate.PetAssigned{
+		PetID:   cmd.PetID,
+		Name:    pet.Name(),
+		Species: pet.Species(),
+		Breed:   pet.Breed(),
+		Age:     pet.Age(),
+		Weight:  pet.Weight(),
+	}
+
+	// Validate that all Services exist and belong to the vendor
+	serviceRepo := uow.ServiceRepository()
+	var bookedServices []aggregate.BookedServices
+	for _, serviceID := range cmd.ServiceIDs {
+		service, err := serviceRepo.GetByID(ctx, serviceID)
+		if err != nil {
+			uow.Rollback(ctx)
+			return errors.NewValidationError(fmt.Sprintf("service %s not found: %v", serviceID, err))
+		}
+		if service.VendorID() != cmd.VendorID {
+			uow.Rollback(ctx)
+			return errors.NewValidationError(fmt.Sprintf("service %s does not belong to vendor %s", serviceID, cmd.VendorID))
+		}
+		// Add service with real data
+		bookedServices = append(bookedServices, aggregate.BookedServices{
+			ServiceID: serviceID,
+			Name:      service.Name(),
+		})
+	}
+
+	// Create booked shop with real data
+	bookedVendor := aggregate.BookedVendor{
+		ShopID:         cmd.VendorID,
+		Name:           vendor.Name(),
+		Location:       vendor.Address(),
+		Phone:          vendor.Phone(),
+		BookedServices: bookedServices,
+	}
+
+	// Create schedule aggregate with validated data
 	schedule, err := aggregate.NewSchedule(bookingUser, bookedVendor, assignedPet, startTime, endTime)
 	if err != nil {
 		uow.Rollback(ctx)

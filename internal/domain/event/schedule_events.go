@@ -2,16 +2,47 @@ package event
 
 import "time"
 
+// Embedded structs for schedule event data
+type BookingUserData struct {
+	UserID  string `json:"user_id"`
+	Name    string `json:"name"`
+	Email   string `json:"email"`
+	Phone   string `json:"phone"`
+	Address string `json:"address"`
+}
+
+type BookedVendorData struct {
+	ShopID         string               `json:"shop_id"`
+	Name           string               `json:"name"`
+	Location       string               `json:"location"`
+	Phone          string               `json:"phone"`
+	BookedServices []BookedServicesData `json:"booked_services"`
+}
+
+type BookedServicesData struct {
+	ServiceID string `json:"service_id"`
+	Name      string `json:"name"`
+}
+
+type PetAssignedData struct {
+	PetID   string  `json:"pet_id"`
+	Name    string  `json:"name"`
+	Species string  `json:"species"`
+	Breed   string  `json:"breed"`
+	Age     int     `json:"age"`
+	Weight  float64 `json:"weight"`
+}
+
 // ScheduleCreated event
 type ScheduleCreated struct {
-	ScheduleID string    `json:"schedule_id"`
-	UserID     string    `json:"user_id"`
-	ShopID     string    `json:"shop_id"`
-	PetID      string    `json:"pet_id"`
-	StartTime  time.Time `json:"start_time"`
-	EndTime    time.Time `json:"end_time"`
-	Status     string    `json:"status"`
-	Timestamp  time.Time `json:"timestamp"`
+	ScheduleID   string           `json:"schedule_id"`
+	BookingUser  BookingUserData  `json:"booking_user"`
+	BookedVendor BookedVendorData `json:"booked_vendor"`
+	AssignedPet  PetAssignedData  `json:"assigned_pet"`
+	StartTime    time.Time        `json:"start_time"`
+	EndTime      time.Time        `json:"end_time"`
+	Status       string           `json:"status"`
+	Timestamp    time.Time        `json:"timestamp"`
 }
 
 func (e *ScheduleCreated) EventType() string     { return "ScheduleCreated" }
