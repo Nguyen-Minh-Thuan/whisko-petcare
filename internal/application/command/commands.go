@@ -65,6 +65,12 @@ type CreatePaymentCommand struct {
 	Amount      int                     `json:"amount"` // Amount in VND
 	Description string                  `json:"description"`
 	Items       []aggregate.PaymentItem `json:"items"`
+	// Schedule-related fields for auto-creating schedule after payment
+	VendorID    string                  `json:"vendor_id"`
+	PetID       string                  `json:"pet_id"`
+	ServiceIDs  []string                `json:"service_ids"`
+	StartTime   string                  `json:"start_time"` // RFC3339 format
+	EndTime     string                  `json:"end_time"`   // RFC3339 format
 }
 
 // CreatePaymentResponse represents a payment creation response

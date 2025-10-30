@@ -47,11 +47,18 @@ type Payment struct {
 	createdAt          time.Time
 	updatedAt          time.Time
 	
+	// Schedule-related fields for auto-creating schedule after payment
+	vendorID           string
+	petID              string
+	serviceIDs         []string
+	startTime          time.Time
+	endTime            time.Time
+	
 	uncommittedEvents  []event.DomainEvent
 }
 
-// NewPayment creates a new payment aggregate
-func NewPayment(userID string, amount int, description string, items []PaymentItem) (*Payment, error) {
+// NewPayment creates a new payment aggregate with schedule information
+func NewPayment(userID string, amount int, description string, items []PaymentItem, vendorID string, petID string, serviceIDs []string, startTime, endTime time.Time) (*Payment, error) {
 	if userID == "" {
 		return nil, fmt.Errorf("userID cannot be empty")
 	}
@@ -63,6 +70,21 @@ func NewPayment(userID string, amount int, description string, items []PaymentIt
 	}
 	if len(items) == 0 {
 		return nil, fmt.Errorf("items cannot be empty")
+	}
+	if vendorID == "" {
+		return nil, fmt.Errorf("vendorID cannot be empty")
+	}
+	if petID == "" {
+		return nil, fmt.Errorf("petID cannot be empty")
+	}
+	if len(serviceIDs) == 0 {
+		return nil, fmt.Errorf("serviceIDs cannot be empty")
+	}
+	if startTime.IsZero() {
+		return nil, fmt.Errorf("startTime cannot be empty")
+	}
+	if endTime.IsZero() {
+		return nil, fmt.Errorf("endTime cannot be empty")
 	}
 
 	// Generate unique order code (timestamp + random)
@@ -78,6 +100,11 @@ func NewPayment(userID string, amount int, description string, items []PaymentIt
 		status:      PaymentStatusPending,
 		method:      PaymentMethodPayOS,
 		expiredAt:   time.Now().Add(15 * time.Minute), // Default 15 minutes expiration
+		vendorID:    vendorID,
+		petID:       petID,
+		serviceIDs:  serviceIDs,
+		startTime:   startTime,
+		endTime:     endTime,
 		version:     1,
 		createdAt:   time.Now(),
 		updatedAt:   time.Now(),
@@ -89,10 +116,15 @@ func NewPayment(userID string, amount int, description string, items []PaymentIt
 		OrderCode:   orderCode,
 		Amount:      amount,
 		Description: description,
-		Items:       items,
+Items:       items,
 		Status:      string(PaymentStatusPending),
 		Method:      string(PaymentMethodPayOS),
 		ExpiredAt:   payment.expiredAt,
+		VendorID:    vendorID,
+		PetID:       petID,
+		ServiceIDs:  serviceIDs,
+		StartTime:   startTime,
+		EndTime:     endTime,
 		Timestamp:   payment.createdAt,
 	})
 
@@ -228,6 +260,11 @@ func (p *Payment) applyEvent(ev event.DomainEvent) error {
 		p.status = PaymentStatus(e.Status)
 		p.method = PaymentMethod(e.Method)
 		p.expiredAt = e.ExpiredAt
+		p.vendorID = e.VendorID
+		p.petID = e.PetID
+		p.serviceIDs = e.ServiceIDs
+		p.startTime = e.StartTime
+		p.endTime = e.EndTime
 		p.createdAt = e.Timestamp
 		p.updatedAt = e.Timestamp
 
@@ -272,6 +309,11 @@ func (p *Payment) PayOSTransactionID() string { return p.payOSTransactionID }
 func (p *Payment) CheckoutURL() string        { return p.checkoutURL }
 func (p *Payment) QRCode() string             { return p.qrCode }
 func (p *Payment) ExpiredAt() time.Time       { return p.expiredAt }
+func (p *Payment) VendorID() string           { return p.vendorID }
+func (p *Payment) PetID() string              { return p.petID }
+func (p *Payment) ServiceIDs() []string       { return p.serviceIDs }
+func (p *Payment) StartTime() time.Time       { return p.startTime }
+func (p *Payment) EndTime() time.Time         { return p.endTime }
 func (p *Payment) Version() int               { return p.version }
 func (p *Payment) CreatedAt() time.Time       { return p.createdAt }
 func (p *Payment) UpdatedAt() time.Time       { return p.updatedAt }

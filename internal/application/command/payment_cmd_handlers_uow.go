@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"whisko-petcare/internal/domain/aggregate"
 	"whisko-petcare/internal/domain/repository"
@@ -50,6 +51,31 @@ func (h *CreatePaymentWithUoWHandler) Handle(ctx context.Context, cmd *CreatePay
 	if len(cmd.Items) == 0 {
 		return nil, errors.NewValidationError("items are required")
 	}
+	if cmd.VendorID == "" {
+		return nil, errors.NewValidationError("vendor_id is required")
+	}
+	if cmd.PetID == "" {
+		return nil, errors.NewValidationError("pet_id is required")
+	}
+	if len(cmd.ServiceIDs) == 0 {
+		return nil, errors.NewValidationError("service_ids are required")
+	}
+	if cmd.StartTime == "" {
+		return nil, errors.NewValidationError("start_time is required")
+	}
+	if cmd.EndTime == "" {
+		return nil, errors.NewValidationError("end_time is required")
+	}
+
+	// Parse times
+	startTime, err := time.Parse(time.RFC3339, cmd.StartTime)
+	if err != nil {
+		return nil, errors.NewValidationError(fmt.Sprintf("invalid start_time format: %v", err))
+	}
+	endTime, err := time.Parse(time.RFC3339, cmd.EndTime)
+	if err != nil {
+		return nil, errors.NewValidationError(fmt.Sprintf("invalid end_time format: %v", err))
+	}
 
 	// Validate that item total matches amount
 	totalAmount := 0
@@ -69,8 +95,8 @@ func (h *CreatePaymentWithUoWHandler) Handle(ctx context.Context, cmd *CreatePay
 		return nil, errors.NewInternalError(fmt.Sprintf("failed to begin transaction: %v", err))
 	}
 
-	// Create payment aggregate
-	payment, err := aggregate.NewPayment(cmd.UserID, cmd.Amount, cmd.Description, cmd.Items)
+	// Create payment aggregate with schedule information
+	payment, err := aggregate.NewPayment(cmd.UserID, cmd.Amount, cmd.Description, cmd.Items, cmd.VendorID, cmd.PetID, cmd.ServiceIDs, startTime, endTime)
 	if err != nil {
 		uow.Rollback(ctx)
 		return nil, errors.NewValidationError(fmt.Sprintf("failed to create payment: %v", err))
@@ -245,9 +271,10 @@ func (h *CancelPaymentWithUoWHandler) Handle(ctx context.Context, cmd *CancelPay
 
 // ConfirmPaymentWithUoWHandler handles confirm payment commands with Unit of Work
 type ConfirmPaymentWithUoWHandler struct {
-	uowFactory   repository.UnitOfWorkFactory
-	eventBus     bus.EventBus
-	payOSService *payos.Service
+	uowFactory              repository.UnitOfWorkFactory
+	eventBus                bus.EventBus
+	payOSService            *payos.Service
+	createScheduleHandler   *CreateScheduleWithUoWHandler
 }
 
 // NewConfirmPaymentWithUoWHandler creates a new confirm payment handler with UoW
@@ -255,11 +282,13 @@ func NewConfirmPaymentWithUoWHandler(
 	uowFactory repository.UnitOfWorkFactory,
 	eventBus bus.EventBus,
 	payOSService *payos.Service,
+	createScheduleHandler *CreateScheduleWithUoWHandler,
 ) *ConfirmPaymentWithUoWHandler {
 	return &ConfirmPaymentWithUoWHandler{
-		uowFactory:   uowFactory,
-		eventBus:     eventBus,
-		payOSService: payOSService,
+		uowFactory:              uowFactory,
+		eventBus:                eventBus,
+		payOSService:            payOSService,
+		createScheduleHandler:   createScheduleHandler,
 	}
 }
 
@@ -303,9 +332,11 @@ func (h *ConfirmPaymentWithUoWHandler) Handle(ctx context.Context, cmd *ConfirmP
 	}
 
 	// Update payment status based on PayOS response
+	var paymentWasPaid bool
 	switch payOSInfo.Data.Status {
 	case "PAID":
 		err = payment.MarkAsPaid()
+		paymentWasPaid = true
 	case "CANCELLED":
 		err = payment.MarkAsCancelled()
 	case "EXPIRED":
@@ -336,6 +367,27 @@ func (h *ConfirmPaymentWithUoWHandler) Handle(ctx context.Context, cmd *ConfirmP
 	// Commit transaction
 	if err := uow.Commit(ctx); err != nil {
 		return errors.NewInternalError(fmt.Sprintf("failed to commit transaction: %v", err))
+	}
+
+	// AUTO-CREATE SCHEDULE: If payment was successful, automatically create a schedule
+	if paymentWasPaid && h.createScheduleHandler != nil {
+		fmt.Printf("Payment successful - auto-creating schedule for payment ID: %s\n", payment.ID())
+		
+		scheduleCmd := &CreateSchedule{
+			UserID:    payment.UserID(),
+			VendorID:  payment.VendorID(),
+			PetID:     payment.PetID(),
+			ServiceIDs: payment.ServiceIDs(),
+			StartTime: payment.StartTime().Format(time.RFC3339),
+			EndTime:   payment.EndTime().Format(time.RFC3339),
+		}
+		
+		if err := h.createScheduleHandler.Handle(ctx, scheduleCmd); err != nil {
+			// Log error but don't fail the payment confirmation
+			fmt.Printf("Warning: failed to auto-create schedule after payment: %v\n", err)
+		} else {
+			fmt.Printf("Successfully auto-created schedule for payment ID: %s\n", payment.ID())
+		}
 	}
 
 	return nil

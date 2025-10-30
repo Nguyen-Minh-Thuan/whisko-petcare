@@ -20,6 +20,12 @@ type PaymentCreated struct {
 	Status      string        `json:"status"`
 	Method      string        `json:"method"`
 	ExpiredAt   time.Time     `json:"expired_at"`
+	// Schedule-related fields for auto-creating schedule after payment
+	VendorID    string        `json:"vendor_id"`
+	PetID       string        `json:"pet_id"`
+	ServiceIDs  []string      `json:"service_ids"`
+	StartTime   time.Time     `json:"start_time"`
+	EndTime     time.Time     `json:"end_time"`
 	Timestamp   time.Time     `json:"timestamp"`
 }
 

@@ -3,10 +3,12 @@ package mongo
 import (
 	"context"
 	"fmt"
+	"time"
 	"whisko-petcare/internal/domain/aggregate"
 	"whisko-petcare/internal/domain/event"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -80,6 +82,11 @@ func (r *MongoPaymentRepository) Save(ctx context.Context, payment *aggregate.Pa
 		"checkout_url":         payment.CheckoutURL(),
 		"qr_code":              payment.QRCode(),
 		"expired_at":           payment.ExpiredAt(),
+		"vendor_id":            payment.VendorID(),
+		"pet_id":               payment.PetID(),
+		"service_ids":          payment.ServiceIDs(),
+		"start_time":           payment.StartTime(),
+		"end_time":             payment.EndTime(),
 		"version":              payment.Version(),
 		"created_at":           payment.CreatedAt(),
 		"updated_at":           payment.UpdatedAt(),
@@ -234,12 +241,27 @@ func (r *MongoPaymentRepository) documentToPayment(doc bson.M) (*aggregate.Payme
 		items = append(items, item)
 	}
 
+	// Extract service IDs
+	var serviceIDs []string
+	if serviceIDsData, ok := doc["service_ids"].(bson.A); ok {
+		for _, sid := range serviceIDsData {
+			if sidStr, ok := sid.(string); ok {
+				serviceIDs = append(serviceIDs, sidStr)
+			}
+		}
+	}
+
 	// Create payment (this bypasses the business logic validation for reconstruction)
 	payment, err := aggregate.NewPayment(
 		getString(doc, "user_id"),
 		getIntValue(doc, "amount"),
 		getString(doc, "description"),
 		items,
+		getString(doc, "vendor_id"),
+		getString(doc, "pet_id"),
+		serviceIDs,
+		getTime(doc, "start_time"),
+		getTime(doc, "end_time"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create payment from document: %w", err)
@@ -264,4 +286,14 @@ func getIntValue(doc bson.M, key string) int {
 		return val
 	}
 	return 0
+}
+
+func getTime(doc bson.M, key string) time.Time {
+	if val, ok := doc[key].(primitive.DateTime); ok {
+		return val.Time()
+	}
+	if val, ok := doc[key].(time.Time); ok {
+		return val
+	}
+	return time.Time{}
 }
