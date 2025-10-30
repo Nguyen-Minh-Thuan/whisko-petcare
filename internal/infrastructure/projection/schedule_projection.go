@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"whisko-petcare/internal/domain/event"
-
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -220,9 +219,9 @@ func (p *MongoScheduleProjection) ListAll(ctx context.Context, offset, limit int
 func (p *MongoScheduleProjection) HandleScheduleCreated(ctx context.Context, evt event.ScheduleCreated) error {
 	schedule := ScheduleReadModel{
 		ID:        evt.ScheduleID,
-		UserID:    evt.BookingUser.UserID,
-		ShopID:    evt.BookedVendor.ShopID,
-		PetID:     evt.AssignedPet.PetID,
+		UserID:    evt.UserID,
+		ShopID:    evt.ShopID,
+		PetID:     evt.PetID,
 		StartTime: evt.StartTime,
 		EndTime:   evt.EndTime,
 		Status:    evt.Status,

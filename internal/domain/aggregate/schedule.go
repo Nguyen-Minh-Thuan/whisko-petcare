@@ -9,33 +9,33 @@ import (
 )
 
 type PetAssigned struct {
-	PetID   string  `json:"pet_id" bson:"pet_id"`
-	Name    string  `json:"name" bson:"name"`
-	Species string  `json:"species" bson:"species"`
-	Breed   string  `json:"breed" bson:"breed"`
-	Age     int     `json:"age" bson:"age"`
-	Weight  float64 `json:"weight" bson:"weight"`
+	PetID   string  `json:"pet_id"`
+	Name    string  `json:"name"`
+	Species string  `json:"species"`
+	Breed   string  `json:"breed"`
+	Age     int     `json:"age"`
+	Weight  float64 `json:"weight"`
 }
 
 type BookingUser struct {
-	UserID  string `json:"user_id" bson:"user_id"`
-	Name    string `json:"name" bson:"name"`
-	Email   string `json:"email" bson:"email"`
-	Phone   string `json:"phone" bson:"phone"`
-	Address string `json:"address" bson:"address"`
+	UserID  string `json:"user_id"`
+	Name    string `json:"name"`
+	Email   string `json:"email"`
+	Phone   string `json:"phone"`
+	Address string `json:"address"`
 }
 
 type BookedVendor struct {
-	ShopID         string           `json:"shop_id" bson:"shop_id"`
-	Name           string           `json:"name" bson:"name"`
-	Location       string           `json:"location" bson:"location"`
-	Phone          string           `json:"phone" bson:"phone"`
-	BookedServices []BookedServices `json:"booked_services" bson:"booked_services"`
+	ShopID         string           `json:"shop_id"`
+	Name           string           `json:"name"`
+	Location       string           `json:"location"`
+	Phone          string           `json:"phone"`
+	BookedServices []BookedServices `json:"booked_services"`
 }
 
 type BookedServices struct {
-	ServiceID string `json:"service_id" bson:"service_id"`
-	Name      string `json:"name" bson:"name"`
+	ServiceID string `json:"service_id"`
+	Name      string `json:"name"`
 }
 
 type ScheduleStatus string
@@ -97,43 +97,15 @@ func NewSchedule(bookingUser BookingUser, bookedShop BookedVendor, assignedPet P
 		isActive:    true,
 	}
 
-	// Convert booked services to event data
-	var bookedServicesData []event.BookedServicesData
-	for _, svc := range bookedShop.BookedServices {
-		bookedServicesData = append(bookedServicesData, event.BookedServicesData{
-			ServiceID: svc.ServiceID,
-			Name:      svc.Name,
-		})
-	}
-
 	schedule.raiseEvent(&event.ScheduleCreated{
 		ScheduleID: schedule.id,
-		BookingUser: event.BookingUserData{
-			UserID:  bookingUser.UserID,
-			Name:    bookingUser.Name,
-			Email:   bookingUser.Email,
-			Phone:   bookingUser.Phone,
-			Address: bookingUser.Address,
-		},
-		BookedVendor: event.BookedVendorData{
-			ShopID:         bookedShop.ShopID,
-			Name:           bookedShop.Name,
-			Location:       bookedShop.Location,
-			Phone:          bookedShop.Phone,
-			BookedServices: bookedServicesData,
-		},
-		AssignedPet: event.PetAssignedData{
-			PetID:   assignedPet.PetID,
-			Name:    assignedPet.Name,
-			Species: assignedPet.Species,
-			Breed:   assignedPet.Breed,
-			Age:     assignedPet.Age,
-			Weight:  assignedPet.Weight,
-		},
-		StartTime: startTime,
-		EndTime:   endTime,
-		Status:    string(schedule.status),
-		Timestamp: schedule.createdAt,
+		UserID:     bookingUser.UserID,
+		ShopID:     bookedShop.ShopID,
+		PetID:      assignedPet.PetID,
+		StartTime:  startTime,
+		EndTime:    endTime,
+		Status:     string(schedule.status),
+		Timestamp:  schedule.createdAt,
 	})
 
 	return schedule, nil
@@ -218,44 +190,15 @@ func (s *Schedule) applyEvent(ev event.DomainEvent) error {
 	switch e := ev.(type) {
 	case *event.ScheduleCreated:
 		s.id = e.ScheduleID
-		
-		// Reconstruct BookingUser with all data
 		s.bookingUser = BookingUser{
-			UserID:  e.BookingUser.UserID,
-			Name:    e.BookingUser.Name,
-			Email:   e.BookingUser.Email,
-			Phone:   e.BookingUser.Phone,
-			Address: e.BookingUser.Address,
+			UserID: e.UserID,
 		}
-		
-		// Reconstruct BookedServices
-		var bookedServices []BookedServices
-		for _, svcData := range e.BookedVendor.BookedServices {
-			bookedServices = append(bookedServices, BookedServices{
-				ServiceID: svcData.ServiceID,
-				Name:      svcData.Name,
-			})
-		}
-		
-		// Reconstruct BookedVendor with all data
 		s.bookedShop = BookedVendor{
-			ShopID:         e.BookedVendor.ShopID,
-			Name:           e.BookedVendor.Name,
-			Location:       e.BookedVendor.Location,
-			Phone:          e.BookedVendor.Phone,
-			BookedServices: bookedServices,
+			ShopID: e.ShopID,
 		}
-		
-		// Reconstruct PetAssigned with all data
 		s.assignedPet = PetAssigned{
-			PetID:   e.AssignedPet.PetID,
-			Name:    e.AssignedPet.Name,
-			Species: e.AssignedPet.Species,
-			Breed:   e.AssignedPet.Breed,
-			Age:     e.AssignedPet.Age,
-			Weight:  e.AssignedPet.Weight,
+			PetID: e.PetID,
 		}
-		
 		s.startTime = e.StartTime
 		s.endTime = e.EndTime
 		s.status = ScheduleStatus(e.Status)
