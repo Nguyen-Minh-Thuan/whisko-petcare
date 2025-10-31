@@ -131,6 +131,54 @@ Items:       items,
 	return payment, nil
 }
 
+// ReconstructPayment reconstructs a payment from database without validation (for legacy data compatibility)
+func ReconstructPayment(
+	id string,
+	orderCode int64,
+	userID string,
+	amount int,
+	description string,
+	items []PaymentItem,
+	status PaymentStatus,
+	method PaymentMethod,
+	payOSTransactionID string,
+	checkoutURL string,
+	qrCode string,
+	expiredAt time.Time,
+	vendorID string,
+	petID string,
+	serviceIDs []string,
+	startTime time.Time,
+	endTime time.Time,
+	version int,
+	createdAt time.Time,
+	updatedAt time.Time,
+) *Payment {
+	return &Payment{
+		id:                 id,
+		orderCode:          orderCode,
+		userID:             userID,
+		amount:             amount,
+		description:        description,
+		items:              items,
+		status:             status,
+		method:             method,
+		payOSTransactionID: payOSTransactionID,
+		checkoutURL:        checkoutURL,
+		qrCode:             qrCode,
+		expiredAt:          expiredAt,
+		vendorID:           vendorID,
+		petID:              petID,
+		serviceIDs:         serviceIDs,
+		startTime:          startTime,
+		endTime:            endTime,
+		version:            version,
+		createdAt:          createdAt,
+		updatedAt:          updatedAt,
+		uncommittedEvents:  []event.DomainEvent{},
+	}
+}
+
 // SetPayOSDetails updates the payment with PayOS transaction details
 func (p *Payment) SetPayOSDetails(transactionID, checkoutURL, qrCode string) error {
 	if p.status != PaymentStatusPending {

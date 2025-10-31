@@ -690,6 +690,10 @@ func main() {
 		w.Write([]byte(`{"status":"healthy","service":"whisko-petcare"}`))
 	})
 
+	// Start payment expiry background service
+	paymentExpiryService := services.NewPaymentExpiryService(uowFactory, eventBus, payOSService)
+	go paymentExpiryService.Start(context.Background())
+
 	// Start HTTP server
 	go func() {
 		port := getEnv("PORT", "8080")
@@ -705,6 +709,7 @@ func main() {
 	<-quit
 
 	log.Println("Shutting down server...")
+	paymentExpiryService.Stop()
 	eventBus.Stop()
 	log.Println("Server stopped")
 }
