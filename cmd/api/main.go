@@ -241,10 +241,13 @@ func main() {
 	listUsersHandler := query.NewListUsersHandler(userProjection)
 	searchUsersHandler := query.NewSearchUsersHandler(userProjection)
 
+	// Initialize schedule command handlers FIRST (needed by payment confirmation)
+	createScheduleHandler := command.NewCreateScheduleWithUoWHandler(uowFactory, eventBus)
+
 	// Initialize payment command handlers with UoW
 	createPaymentHandler := command.NewCreatePaymentWithUoWHandler(uowFactory, eventBus, payOSService)
 	cancelPaymentHandler := command.NewCancelPaymentWithUoWHandler(uowFactory, eventBus, payOSService)
-	confirmPaymentHandler := command.NewConfirmPaymentWithUoWHandler(uowFactory, eventBus, payOSService)
+	confirmPaymentHandler := command.NewConfirmPaymentWithUoWHandler(uowFactory, eventBus, payOSService, createScheduleHandler)
 	
 	// Initialize payment query handlers
 	getPaymentHandler := query.NewGetPaymentHandler(paymentProjection)
@@ -280,8 +283,7 @@ func main() {
 	listVendorServicesHandler := query.NewListVendorServicesHandler(serviceProjection)
 	listServicesHandler := query.NewListServicesHandler(serviceProjection)
 
-	// Initialize schedule command handlers
-	createScheduleHandler := command.NewCreateScheduleWithUoWHandler(uowFactory, eventBus)
+	// Continue with other schedule command handlers
 	changeScheduleStatusHandler := command.NewChangeScheduleStatusWithUoWHandler(uowFactory, eventBus)
 	completeScheduleHandler := command.NewCompleteScheduleWithUoWHandler(uowFactory, eventBus)
 	cancelScheduleHandler := command.NewCancelScheduleWithUoWHandler(uowFactory, eventBus)
@@ -688,6 +690,10 @@ func main() {
 		w.Write([]byte(`{"status":"healthy","service":"whisko-petcare"}`))
 	})
 
+	// Start payment expiry background service
+	paymentExpiryService := services.NewPaymentExpiryService(uowFactory, eventBus, payOSService)
+	go paymentExpiryService.Start(context.Background())
+
 	// Start HTTP server
 	go func() {
 		port := getEnv("PORT", "8080")
@@ -703,6 +709,7 @@ func main() {
 	<-quit
 
 	log.Println("Shutting down server...")
+	paymentExpiryService.Stop()
 	eventBus.Stop()
 	log.Println("Server stopped")
 }
