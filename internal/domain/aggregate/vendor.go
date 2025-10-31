@@ -12,6 +12,7 @@ type Vendor struct {
 	email     string
 	phone     string
 	address   string
+	imageUrl  string
 	version   int
 	createdAt time.Time
 	updatedAt time.Time
@@ -20,7 +21,7 @@ type Vendor struct {
 	uncommittedEvents []event.DomainEvent
 }
 
-func NewVendor(vendorID, name, email, phone, address string) (*Vendor, error) {
+func NewVendor(vendorID, name, email, phone, address string, imageUrl ...string) (*Vendor, error) {
 	if vendorID == "" {
 		return nil, fmt.Errorf("vendor ID cannot be empty")
 	}
@@ -48,12 +49,18 @@ func NewVendor(vendorID, name, email, phone, address string) (*Vendor, error) {
 		isActive:  true,
 	}
 
+	// Set imageUrl if provided
+	if len(imageUrl) > 0 && imageUrl[0] != "" {
+		vendor.imageUrl = imageUrl[0]
+	}
+
 	vendor.raiseEvent(&event.VendorCreated{
 		VendorID:  vendor.id,
 		Name:      name,
 		Email:     email,
 		Phone:     phone,
 		Address:   address,
+		ImageUrl:  vendor.imageUrl,
 		Timestamp: vendor.createdAt,
 	})
 	return vendor, nil
@@ -91,6 +98,19 @@ func (v *Vendor) UpdateProfile(name, email, phone, address string) error {
 		Timestamp:    time.Now(),
 	})
 	
+	return nil
+}
+
+func (v *Vendor) UpdateImageUrl(imageUrl string) error {
+	if imageUrl == "" {
+		return fmt.Errorf("imageUrl cannot be empty")
+	}
+	v.raiseEvent(&event.VendorImageUpdated{
+		VendorID:     v.id,
+		ImageUrl:     imageUrl,
+		EventVersion: v.version + 1,
+		Timestamp:    time.Now(),
+	})
 	return nil
 }
 
@@ -143,6 +163,11 @@ func (v *Vendor) applyEvent(ev event.DomainEvent) error {
 		v.updatedAt = e.Timestamp
 		v.isActive = false
 		
+	case *event.VendorImageUpdated:
+		v.imageUrl = e.ImageUrl
+		v.version = e.EventVersion
+		v.updatedAt = e.Timestamp
+		
 	default:
 		return fmt.Errorf("unknown event type: %T", ev)
 	}
@@ -156,6 +181,7 @@ func (v *Vendor) Name() string         { return v.name }
 func (v *Vendor) Email() string        { return v.email }
 func (v *Vendor) Phone() string        { return v.phone }
 func (v *Vendor) Address() string      { return v.address }
+func (v *Vendor) ImageUrl() string     { return v.imageUrl }
 func (v *Vendor) Version() int         { return v.version }
 func (v *Vendor) CreatedAt() time.Time { return v.createdAt }
 func (v *Vendor) UpdatedAt() time.Time { return v.updatedAt }

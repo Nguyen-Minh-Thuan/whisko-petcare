@@ -8,11 +8,12 @@ import "whisko-petcare/internal/domain/aggregate"
 
 // CreateUser represents a command to create a new user
 type CreateUser struct {
-	UserID  string `json:"user_id"`
-	Name    string `json:"name"`
-	Email   string `json:"email"`
-	Phone   string `json:"phone,omitempty"`
-	Address string `json:"address,omitempty"`
+	UserID   string `json:"user_id"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Phone    string `json:"phone,omitempty"`
+	Address  string `json:"address,omitempty"`
+	ImageUrl string `json:"image_url,omitempty"`
 }
 
 // UpdateUserProfile represents a command to update user profile
@@ -101,12 +102,13 @@ type ConfirmPaymentCommand struct {
 
 // CreatePet represents a command to create a new pet
 type CreatePet struct {
-	UserID  string  `json:"user_id"`
-	Name    string  `json:"name"`
-	Species string  `json:"species"`
-	Breed   string  `json:"breed"`
-	Age     int     `json:"age"`
-	Weight  float64 `json:"weight"`
+	UserID   string  `json:"user_id"`
+	Name     string  `json:"name"`
+	Species  string  `json:"species"`
+	Breed    string  `json:"breed"`
+	Age      int     `json:"age"`
+	Weight   float64 `json:"weight"`
+	ImageUrl string  `json:"image_url,omitempty"`
 }
 
 // UpdatePet represents a command to update pet information
@@ -135,6 +137,7 @@ type CreateVendor struct {
 	Email    string `json:"email"`
 	Phone    string `json:"phone"`
 	Address  string `json:"address"`
+	ImageUrl string `json:"image_url,omitempty"`
 }
 
 // UpdateVendor represents a command to update vendor information
@@ -157,20 +160,23 @@ type DeleteVendor struct {
 
 // CreateService represents a command to create a new service
 type CreateService struct {
-	VendorID    string `json:"vendor_id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Price       int    `json:"price"`        // Price in VND
-	Duration    int    `json:"duration_minutes"` // Duration in minutes
+	VendorID    string   `json:"vendor_id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Price       int      `json:"price"`        // Price in VND
+	Duration    int      `json:"duration_minutes"` // Duration in minutes
+	Tags        []string `json:"tags,omitempty"`
+	ImageUrl    string   `json:"image_url,omitempty"`
 }
 
 // UpdateService represents a command to update service information
 type UpdateService struct {
-	ServiceID   string `json:"service_id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Price       int    `json:"price"`
-	Duration    int    `json:"duration_minutes"`
+	ServiceID   string   `json:"service_id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Price       int      `json:"price"`
+	Duration    int      `json:"duration_minutes"`
+	Tags        []string `json:"tags,omitempty"`
 }
 
 // DeleteService represents a command to delete a service
@@ -249,4 +255,32 @@ type CreateVendorStaff struct {
 type DeleteVendorStaff struct {
 	UserID   string `json:"user_id"`
 	VendorID string `json:"vendor_id"`
+}
+
+// ============================================
+// Update Image Commands
+// ============================================
+
+// UpdateUserImage represents a command to update user image URL
+type UpdateUserImage struct {
+	UserID   string `json:"user_id"`
+	ImageUrl string `json:"image_url"`
+}
+
+// UpdatePetImage represents a command to update pet image URL
+type UpdatePetImage struct {
+	PetID    string `json:"pet_id"`
+	ImageUrl string `json:"image_url"`
+}
+
+// UpdateVendorImage represents a command to update vendor image URL
+type UpdateVendorImage struct {
+	VendorID string `json:"vendor_id"`
+	ImageUrl string `json:"image_url"`
+}
+
+// UpdateServiceImage represents a command to update service image URL
+type UpdateServiceImage struct {
+	ServiceID string `json:"service_id"`
+	ImageUrl  string `json:"image_url"`
 }

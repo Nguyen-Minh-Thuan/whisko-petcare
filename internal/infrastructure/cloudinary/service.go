@@ -282,6 +282,22 @@ func (s *Service) UploadUserAvatar(ctx context.Context, file io.Reader, filename
 	return s.UploadFile(ctx, file, filename, opts)
 }
 
+// UploadServiceImage uploads a service image with optimized settings
+func (s *Service) UploadServiceImage(ctx context.Context, file io.Reader, filename string, serviceID string) (*UploadResult, error) {
+	opts := &UploadOptions{
+		Folder:         "services",
+		PublicID:       fmt.Sprintf("service_%s_%d", serviceID, time.Now().Unix()),
+		UniqueFilename: false,
+		Overwrite:      false,
+		Tags:           []string{"service", serviceID},
+		ResourceType:   "image",
+		AllowedFormats: []string{"jpg", "jpeg", "png", "webp"},
+		Transformation: "q_auto,f_auto",
+	}
+
+	return s.UploadFile(ctx, file, filename, opts)
+}
+
 // ExtractPublicIDFromURL extracts the public ID from a Cloudinary URL
 func (s *Service) ExtractPublicIDFromURL(url string) string {
 	// URL format: https://res.cloudinary.com/{cloud_name}/image/upload/v{version}/{folder}/{publicID}.{format}

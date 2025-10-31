@@ -13,6 +13,7 @@ type PetCreated struct {
 	Breed     string    `json:"breed"`
 	Age       int       `json:"age"`
 	Weight    float64   `json:"weight"`
+	ImageUrl  string    `json:"image_url"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
@@ -50,3 +51,16 @@ func (e *PetDeleted) EventType() string     { return "PetDeleted" }
 func (e *PetDeleted) AggregateID() string   { return e.PetID }
 func (e *PetDeleted) OccurredAt() time.Time { return e.Timestamp }
 func (e *PetDeleted) Version() int          { return e.EventVersion }
+
+// PetImageUpdated event
+type PetImageUpdated struct {
+	PetID        string    `json:"pet_id"`
+	ImageUrl     string    `json:"image_url"`
+	EventVersion int       `json:"version"`
+	Timestamp    time.Time `json:"timestamp"`
+}
+
+func (e *PetImageUpdated) EventType() string     { return "PetImageUpdated" }
+func (e *PetImageUpdated) AggregateID() string   { return e.PetID }
+func (e *PetImageUpdated) OccurredAt() time.Time { return e.Timestamp }
+func (e *PetImageUpdated) Version() int          { return e.EventVersion }

@@ -78,8 +78,10 @@ whisko-petcare/
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Go 1.18+
-- MongoDB (optional - has in-memory fallback)
+- Go 1.21+
+- MongoDB Atlas account (or local MongoDB)
+- **Cloudinary account** (for image uploads) - [Sign up free](https://cloudinary.com/)
+- PayOS account (for payments) - [Sign up](https://payos.vn/)
 
 ### Run the Application
 
@@ -90,10 +92,14 @@ cd whisko-petcare
 go mod tidy
 ```
 
-2. **Configure (optional)**:
+2. **Configure environment**:
 ```bash
 cp .env.example .env
-# Edit .env if using MongoDB
+# Edit .env with your credentials:
+# - MongoDB connection string
+# - Cloudinary credentials (Cloud Name, API Key, API Secret)
+# - PayOS credentials
+# - JWT secret key
 ```
 
 3. **Start the application**:
@@ -110,29 +116,64 @@ The server starts on `http://localhost:8080`
 
 ## 📚 API Examples
 
-### Create a User
+### Create a User (with JSON)
 ```bash
-curl -X POST http://localhost:8080/api/v1/users \
+curl -X POST http://localhost:8080/users \
   -H "Content-Type: application/json" \
   -d '{"name": "Markus Marcaroni", "email": "nononon@example.com"}'
 ```
 
-### Get a User
+### Create a User with Image (Multipart)
 ```bash
-curl http://localhost:8080/api/v1/users/{user-id}
+curl -X POST http://localhost:8080/users \
+  -F "name=John Doe" \
+  -F "email=john@example.com" \
+  -F "phone=+1234567890" \
+  -F "image=@/path/to/avatar.jpg"
+```
+**Response:**
+```json
+{
+  "message": "User created successfully",
+  "user_id": "user_1234567890",
+  "image_url": "https://res.cloudinary.com/dys4wwi0j/image/upload/v.../WhiskoImages/avatars/user_1234567890.jpg"
+}
 ```
 
-### List Users
+### Create a Pet with Image
 ```bash
-curl http://localhost:8080/api/v1/users
+curl -X POST http://localhost:8080/pets \
+  -F "user_id=user_123" \
+  -F "name=Fluffy" \
+  -F "species=cat" \
+  -F "breed=Persian" \
+  -F "age=3" \
+  -F "weight=4.5" \
+  -F "image=@pet-photo.jpg"
 ```
 
-### Update a User
+### Create a Vendor with Logo
 ```bash
-curl -X PUT http://localhost:8080/api/v1/users/{user-id} \
-  -H "Content-Type: application/json" \
-  -d '{"name": "The World", "email": "you@example.com"}'
+curl -X POST http://localhost:8080/vendors \
+  -F "name=Pet Care Clinic" \
+  -F "email=contact@petcare.com" \
+  -F "phone=+1234567890" \
+  -F "image=@logo.png"
 ```
+
+### Create a Service with Image
+```bash
+curl -X POST http://localhost:8080/services \
+  -F "vendor_id=vendor_123" \
+  -F "name=Dog Grooming" \
+  -F "description=Full service grooming" \
+  -F "price=5000" \
+  -F "duration_minutes=60" \
+  -F "tags=grooming,bathing" \
+  -F "image=@service-photo.jpg"
+```
+
+**📖 For complete API documentation, see [SINGLE_CALL_IMAGE_UPLOAD.md](docs/SINGLE_CALL_IMAGE_UPLOAD.md)**
 
 ## 💡 Key Concepts
 
@@ -143,27 +184,70 @@ curl -X PUT http://localhost:8080/api/v1/users/{user-id} \
 
 ## 🔧 Configuration
 
-Environment variables:
+Key environment variables:
 
 ```bash
-MONGODB_URI=mongodb://localhost:27017  # MongoDB connection
-DATABASE_NAME=whisko                   # Database name
+# Server
+PORT=8080
+
+# MongoDB
+MONGO_URI=mongodb+srv://...
+MONGO_DATABASE=cqrs_eventsourcing
+
+# JWT
+JWT_SECRET_KEY=your-secret-key-min-32-chars
+JWT_TOKEN_DURATION=24h
+
+# Cloudinary (REQUIRED for image uploads)
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+CLOUDINARY_FOLDER=WhiskoImages
+
+# PayOS (for payments)
+PAYOS_CLIENT_ID=your-client-id
+PAYOS_API_KEY=your-api-key
+PAYOS_CHECKSUM_KEY=your-checksum-key
 PORT=8080                              # Server port
 ```
 
-## 📈 What's Next?
+## ✨ Features
 
-This base provides:
-- ✅ CQRS pattern implementation
-- ✅ Event sourcing foundation
-- ✅ MongoDB integration (kinda :D)
-- ✅ Basic API structure
-- ✅ Docker setup
+- ✅ **CQRS + Event Sourcing**: Complete implementation with MongoDB
+- ✅ **Image Upload**: Single-call entity creation with images via Cloudinary
+- ✅ **Payment Integration**: PayOS payment gateway support
+- ✅ **Authentication**: JWT-based auth system
+- ✅ **Multi-Entity Support**: Users, Pets, Vendors, Services, Schedules, Vendor Staff
+- ✅ **Docker Ready**: Full containerization with docker-compose
+- ✅ **API Documentation**: Comprehensive endpoint documentation
 
-**To-do**:
-- Your specific domain models (Pet, Booking, Service, etc.)
-- Business logic and validation
-- Authentication & authorization
+## 📖 Documentation
+
+- **[Single-Call Image Upload](docs/SINGLE_CALL_IMAGE_UPLOAD.md)** - Image upload API guide
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Complete deployment instructions
+- **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)** - Step-by-step deployment checklist
+- **[API Response System](docs/API_RESPONSE_SYSTEM.md)** - Response format documentation
+- **[PayOS Integration](docs/PAYOS_INTEGRATION.md)** - Payment integration guide
+
+## 🚢 Deployment
+
+See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for complete deployment instructions.
+
+**Quick Deploy:**
+```bash
+# 1. Set up environment
+cp .env.example .env
+# Edit .env with your Cloudinary, MongoDB, and PayOS credentials
+
+# 2. Deploy with Docker
+cd deployments
+docker-compose up -d --build
+
+# 3. Verify
+curl http://localhost:8080/health
+```
+
+**Important:** Cloudinary credentials are **REQUIRED** for image upload functionality. Get them from https://cloudinary.com/
 - More complex queries and projections
 - Event handlers for side effects
 - Testing

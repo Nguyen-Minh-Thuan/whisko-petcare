@@ -2,12 +2,15 @@ package http
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"whisko-petcare/internal/application/command"
 	"whisko-petcare/internal/application/services"
+	"whisko-petcare/internal/infrastructure/cloudinary"
 	"whisko-petcare/pkg/errors"
 	"whisko-petcare/pkg/middleware"
 	"whisko-petcare/pkg/response"
@@ -16,38 +19,96 @@ import (
 // HTTPPetController handles HTTP requests for pet operations
 type HTTPPetController struct {
 	petService *services.PetService
+	cloudinary *cloudinary.Service
 }
 
 // NewHTTPPetController creates a new HTTP pet controller
-func NewHTTPPetController(petService *services.PetService) *HTTPPetController {
+func NewHTTPPetController(petService *services.PetService, cloudinary *cloudinary.Service) *HTTPPetController {
 	return &HTTPPetController{
 		petService: petService,
+		cloudinary: cloudinary,
 	}
 }
 
-// CreatePet handles POST /pets
+// CreatePet handles POST /pets - supports both JSON and multipart/form-data with image
 func (c *HTTPPetController) CreatePet(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		UserID  string  `json:"user_id"`
-		Name    string  `json:"name"`
-		Species string  `json:"species"`
-		Breed   string  `json:"breed,omitempty"`
-		Age     int     `json:"age,omitempty"`
-		Weight  float64 `json:"weight,omitempty"`
-	}
+	var userID, name, species, breed, imageUrl string
+	var age int
+	var weight float64
+	petID := fmt.Sprintf("pet_%d", time.Now().UnixNano())
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
-		return
+	// Check if multipart form (with image file)
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			middleware.HandleError(w, r, errors.NewValidationError("Failed to parse form"))
+			return
+		}
+
+		// Get form fields
+		userID = r.FormValue("user_id")
+		name = r.FormValue("name")
+		species = r.FormValue("species")
+		breed = r.FormValue("breed")
+		
+		if ageStr := r.FormValue("age"); ageStr != "" {
+			age, _ = strconv.Atoi(ageStr)
+		}
+		if weightStr := r.FormValue("weight"); weightStr != "" {
+			weight, _ = strconv.ParseFloat(weightStr, 64)
+		}
+
+		// Check if image file is provided
+		file, fileHeader, err := r.FormFile("image")
+		if err == nil {
+			defer file.Close()
+			
+			// Upload to Cloudinary
+			if c.cloudinary == nil {
+				middleware.HandleError(w, r, errors.NewInternalError("Cloudinary not configured"))
+				return
+			}
+			
+			uploadRes, err := c.cloudinary.UploadPetImage(r.Context(), file, fileHeader.Filename, petID)
+			if err != nil {
+				middleware.HandleError(w, r, errors.NewInternalError(fmt.Sprintf("Failed to upload image: %v", err)))
+				return
+			}
+			imageUrl = uploadRes.SecureURL
+		}
+	} else {
+		// JSON body
+		var req struct {
+			UserID   string  `json:"user_id"`
+			Name     string  `json:"name"`
+			Species  string  `json:"species"`
+			Breed    string  `json:"breed,omitempty"`
+			Age      int     `json:"age,omitempty"`
+			Weight   float64 `json:"weight,omitempty"`
+			ImageUrl string  `json:"image_url,omitempty"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
+			return
+		}
+
+		userID = req.UserID
+		name = req.Name
+		species = req.Species
+		breed = req.Breed
+		age = req.Age
+		weight = req.Weight
+		imageUrl = req.ImageUrl
 	}
 
 	cmd := command.CreatePet{
-		UserID:  req.UserID,
-		Name:    req.Name,
-		Species: req.Species,
-		Breed:   req.Breed,
-		Age:     req.Age,
-		Weight:  req.Weight,
+		UserID:   userID,
+		Name:     name,
+		Species:  species,
+		Breed:    breed,
+		Age:      age,
+		Weight:   weight,
+		ImageUrl: imageUrl,
 	}
 
 	if err := c.petService.CreatePet(r.Context(), cmd); err != nil {
@@ -57,6 +118,10 @@ func (c *HTTPPetController) CreatePet(w http.ResponseWriter, r *http.Request) {
 
 	responseData := map[string]interface{}{
 		"message": "Pet created successfully",
+		"pet_id":  petID,
+	}
+	if imageUrl != "" {
+		responseData["image_url"] = imageUrl
 	}
 	response.SendCreated(w, r, responseData)
 }

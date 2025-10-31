@@ -43,6 +43,10 @@ jobs:
             PAYOS_BASE_URL="${{ secrets.PAYOS_BASE_URL }}" \
             PAYOS_RETURN_URL="${{ secrets.PAYOS_RETURN_URL }}" \
             PAYOS_CANCEL_URL="${{ secrets.PAYOS_CANCEL_URL }}" \
+            CLOUDINARY_CLOUD_NAME="${{ secrets.CLOUDINARY_CLOUD_NAME }}" \
+            CLOUDINARY_API_KEY="${{ secrets.CLOUDINARY_API_KEY }}" \
+            CLOUDINARY_API_SECRET="${{ secrets.CLOUDINARY_API_SECRET }}" \
+            CLOUDINARY_FOLDER="${{ secrets.CLOUDINARY_FOLDER }}" \
             docker-compose up -d --build
             
             echo "Checking container logs..."

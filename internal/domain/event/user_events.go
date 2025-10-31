@@ -19,6 +19,7 @@ type UserCreated struct {
 	Address        string    `json:"address"`
 	HashedPassword string    `json:"hashed_password"`
 	Role           string    `json:"role"`
+	ImageUrl       string    `json:"image_url"`
 	IsActive       bool      `json:"is_active"`
 	Timestamp      time.Time `json:"timestamp"`
 }
@@ -55,6 +56,19 @@ func (e *UserContactUpdated) EventType() string     { return "UserContactUpdated
 func (e *UserContactUpdated) AggregateID() string   { return e.UserID }
 func (e *UserContactUpdated) OccurredAt() time.Time { return e.Timestamp }
 func (e *UserContactUpdated) Version() int          { return e.EventVersion }
+
+// UserImageUpdated event
+type UserImageUpdated struct {
+	UserID       string    `json:"user_id"`
+	ImageUrl     string    `json:"image_url"`
+	EventVersion int       `json:"version"`
+	Timestamp    time.Time `json:"timestamp"`
+}
+
+func (e *UserImageUpdated) EventType() string     { return "UserImageUpdated" }
+func (e *UserImageUpdated) AggregateID() string   { return e.UserID }
+func (e *UserImageUpdated) OccurredAt() time.Time { return e.Timestamp }
+func (e *UserImageUpdated) Version() int          { return e.EventVersion }
 
 // UserPasswordChanged event
 type UserPasswordChanged struct {

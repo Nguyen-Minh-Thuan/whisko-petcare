@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"whisko-petcare/internal/application/command"
 	"whisko-petcare/internal/application/query"
 	"whisko-petcare/internal/infrastructure/projection"
@@ -14,6 +15,7 @@ type UserService struct {
 	updateUserProfileHandler *command.UpdateUserProfileWithUoWHandler
 	updateUserContactHandler *command.UpdateUserContactWithUoWHandler
 	deleteUserHandler        *command.DeleteUserWithUoWHandler
+	updateUserImageHandler   *command.UpdateUserImageWithUoWHandler
 
 	// Query handlers
 	getUserHandler     *query.GetUserHandler
@@ -26,6 +28,7 @@ func NewUserService(
 	updateUserProfileHandler *command.UpdateUserProfileWithUoWHandler,
 	updateUserContactHandler *command.UpdateUserContactWithUoWHandler,
 	deleteUserHandler *command.DeleteUserWithUoWHandler,
+	updateUserImageHandler *command.UpdateUserImageWithUoWHandler,
 	getUserHandler *query.GetUserHandler,
 	listUsersHandler *query.ListUsersHandler,
 	searchUsersHandler *query.SearchUsersHandler,
@@ -35,6 +38,7 @@ func NewUserService(
 		updateUserProfileHandler: updateUserProfileHandler,
 		updateUserContactHandler: updateUserContactHandler,
 		deleteUserHandler:        deleteUserHandler,
+		updateUserImageHandler:   updateUserImageHandler,
 		getUserHandler:           getUserHandler,
 		listUsersHandler:         listUsersHandler,
 		searchUsersHandler:       searchUsersHandler,
@@ -56,6 +60,14 @@ func (s *UserService) UpdateUserContact(ctx context.Context, cmd command.UpdateU
 
 func (s *UserService) DeleteUser(ctx context.Context, cmd command.DeleteUser) error {
 	return s.deleteUserHandler.Handle(ctx, &cmd)
+}
+
+// UpdateUserImage updates user's image URL using UoW handler
+func (s *UserService) UpdateUserImage(ctx context.Context, cmd command.UpdateUserImage) error {
+	if s.updateUserImageHandler == nil {
+		return fmt.Errorf("update user image handler not configured")
+	}
+	return s.updateUserImageHandler.Handle(ctx, &cmd)
 }
 
 // Query operations

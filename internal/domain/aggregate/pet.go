@@ -1,9 +1,9 @@
 package aggregate
 
-import(
+import (
+	"fmt"
 	"time"
 	"whisko-petcare/internal/domain/event"
-	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -17,6 +17,7 @@ type Pet struct {
 	description      string
 	age              int
 	weight           float64
+	imageUrl         string
 	version          int
 	createdAt        time.Time
 	updatedAt        time.Time
@@ -25,7 +26,7 @@ type Pet struct {
 	uncommittedEvents []event.DomainEvent
 }
 
-func NewPet(userID, name, species, breed string, age int, weight float64) (*Pet, error) {
+func NewPet(userID, name, species, breed string, age int, weight float64, imageUrl ...string) (*Pet, error) {
 	if userID == "" {
 		return nil, fmt.Errorf("userID cannot be empty")
 	}
@@ -53,6 +54,11 @@ func NewPet(userID, name, species, breed string, age int, weight float64) (*Pet,
 		isActive:  true,
 	}
 
+	// Set imageUrl if provided
+	if len(imageUrl) > 0 && imageUrl[0] != "" {
+		pet.imageUrl = imageUrl[0]
+	}
+
 	pet.raiseEvent(&event.PetCreated{
 		PetID:     pet.id,
 		UserID:    userID,
@@ -61,6 +67,7 @@ func NewPet(userID, name, species, breed string, age int, weight float64) (*Pet,
 		Breed:     breed,
 		Age:       age,
 		Weight:    weight,
+		ImageUrl:  pet.imageUrl,
 		Timestamp: pet.createdAt,
 	})
 
@@ -100,6 +107,19 @@ func (p *Pet) UpdateProfile(name, species, breed string, age int, weight float64
 		Breed:        breed,
 		Age:          age,
 		Weight:       weight,
+		EventVersion: p.version + 1,
+		Timestamp:    time.Now(),
+	})
+	return nil
+}
+
+func (p *Pet) UpdateImageUrl(imageUrl string) error {
+	if imageUrl == "" {
+		return fmt.Errorf("imageUrl cannot be empty")
+	}
+	p.raiseEvent(&event.PetImageUpdated{
+		PetID:        p.id,
+		ImageUrl:     imageUrl,
 		EventVersion: p.version + 1,
 		Timestamp:    time.Now(),
 	})
@@ -168,6 +188,11 @@ func (p *Pet) applyEvent(ev event.DomainEvent) error {
 		p.updatedAt = e.Timestamp
 		p.isActive = false
 		
+	case *event.PetImageUpdated:
+		p.imageUrl = e.ImageUrl
+		p.version = e.EventVersion
+		p.updatedAt = e.Timestamp
+		
 	default:
 		return fmt.Errorf("unknown event type: %T", ev)
 	}
@@ -183,6 +208,7 @@ func (p *Pet) Species() string   { return p.species }
 func (p *Pet) Breed() string     { return p.breed }
 func (p *Pet) Age() int          { return p.age }
 func (p *Pet) Weight() float64   { return p.weight }
+func (p *Pet) ImageUrl() string  { return p.imageUrl }
 func (p *Pet) Version() int      { return p.version }
 func (p *Pet) CreatedAt() time.Time { return p.createdAt }
 func (p *Pet) UpdatedAt() time.Time { return p.updatedAt }

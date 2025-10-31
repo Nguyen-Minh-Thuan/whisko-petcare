@@ -106,6 +106,13 @@ func (h *Handler) HandleUploadImage(w http.ResponseWriter, r *http.Request) {
 		}
 		result, err = h.service.UploadUserAvatar(ctx, file, fileHeader.Filename, entityID)
 
+	case "service":
+		if entityID == "" {
+			response.SendError(w, r, http.StatusBadRequest, "MISSING_ENTITY_ID", "Entity ID is required for service uploads")
+			return
+		}
+		result, err = h.service.UploadServiceImage(ctx, file, fileHeader.Filename, entityID)
+
 	default:
 		// General upload
 		opts := &UploadOptions{

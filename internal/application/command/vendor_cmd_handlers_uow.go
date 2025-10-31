@@ -56,8 +56,8 @@ func (h *CreateVendorWithUoWHandler) Handle(ctx context.Context, cmd *CreateVend
 		return errors.NewInternalError(fmt.Sprintf("failed to begin transaction: %v", err))
 	}
 
-	// Create vendor aggregate
-	vendor, err := aggregate.NewVendor(cmd.VendorID, cmd.Name, cmd.Email, cmd.Phone, cmd.Address)
+	// Create vendor aggregate (with optional imageUrl)
+	vendor, err := aggregate.NewVendor(cmd.VendorID, cmd.Name, cmd.Email, cmd.Phone, cmd.Address, cmd.ImageUrl)
 	if err != nil {
 		uow.Rollback(ctx)
 		return errors.NewValidationError(fmt.Sprintf("failed to create vendor: %v", err))
