@@ -99,6 +99,8 @@ func main() {
 		log.Println("  - Set CLOUDINARY_API_KEY in .env")
 		log.Println("  - Set CLOUDINARY_API_SECRET in .env")
 	} else {
+		log.Printf("📋 Cloudinary Config: CloudName=%s, APIKey=%s, Folder=%s", 
+			cloudinaryConfig.CloudName, cloudinaryConfig.APIKey, cloudinaryConfig.UploadFolder)
 		cloudinaryService, err = cloudinary.NewService(cloudinaryConfig)
 		if err != nil {
 			log.Printf("⚠️  Warning: Failed to initialize Cloudinary service: %v", err)

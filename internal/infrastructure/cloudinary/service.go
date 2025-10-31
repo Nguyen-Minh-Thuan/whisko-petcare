@@ -51,11 +51,17 @@ func NewService(config *Config) (*Service, error) {
 		return nil, fmt.Errorf("invalid cloudinary config: %w", err)
 	}
 
+	fmt.Printf("🔐 NewService - Initializing Cloudinary with CloudName=%s, APIKey=%s (secret hidden), UploadFolder=%s\n", 
+		config.CloudName, config.APIKey, config.UploadFolder)
+	
 	cld, err := cloudinary.NewFromParams(config.CloudName, config.APIKey, config.APISecret)
 	if err != nil {
+		fmt.Printf("❌ NewService - Failed to initialize Cloudinary: %v\n", err)
 		return nil, fmt.Errorf("failed to initialize cloudinary: %w", err)
 	}
 
+	fmt.Printf("✅ NewService - Cloudinary initialized successfully\n")
+	
 	return &Service{
 		cld:          cld,
 		uploadFolder: config.UploadFolder,
@@ -73,6 +79,8 @@ func (s *Service) UploadFile(ctx context.Context, file io.Reader, filename strin
 	if opts.Folder != "" {
 		folder = filepath.Join(folder, opts.Folder)
 	}
+	// Convert backslashes to forward slashes for Cloudinary (works on all platforms)
+	folder = strings.ReplaceAll(folder, "\\", "/")
 
 	// Build upload parameters
 	uploadParams := uploader.UploadParams{
@@ -103,13 +111,38 @@ func (s *Service) UploadFile(ctx context.Context, file io.Reader, filename strin
 		uploadParams.AllowedFormats = opts.AllowedFormats
 	}
 
+	// Debug: print upload params
+	fmt.Printf("📤 UploadFile - uploading to folder=%s, resourceType=%s, filename=%s\n", 
+		uploadParams.Folder, uploadParams.ResourceType, filename)
+	fmt.Printf("🔧 UploadFile - uploadParams: %+v\n", uploadParams)
+
 	// Upload the file
 	result, err := s.cld.Upload.Upload(ctx, file, uploadParams)
 	if err != nil {
+		fmt.Printf("❌ UploadFile - Cloudinary API error: %v\n", err)
 		return nil, fmt.Errorf("failed to upload file: %w", err)
 	}
 
-	return &UploadResult{
+	// Debug: print RAW Cloudinary response
+	fmt.Printf("🔍 UploadFile - RAW Cloudinary result: %+v\n", result)
+	
+	// Check if result is empty/invalid
+	if result == nil {
+		fmt.Printf("❌ UploadFile - Cloudinary returned nil result\n")
+		return nil, fmt.Errorf("cloudinary returned nil result")
+	}
+	
+	if result.PublicID == "" {
+		fmt.Printf("❌ UploadFile - Cloudinary returned empty PublicID (possible auth failure)\n")
+		fmt.Printf("🔍 UploadFile - Error field: %+v\n", result.Error)
+		return nil, fmt.Errorf("cloudinary upload failed: empty public ID (check credentials)")
+	}
+
+	// Debug: print Cloudinary response
+	fmt.Printf("✅ UploadFile - Cloudinary response: PublicID=%s, URL=%s, Size=%dx%d, Bytes=%d\n", 
+		result.PublicID, result.SecureURL, result.Width, result.Height, result.Bytes)
+
+	uploadResult := &UploadResult{
 		PublicID:     result.PublicID,
 		SecureURL:    result.SecureURL,
 		URL:          result.URL,
@@ -119,7 +152,10 @@ func (s *Service) UploadFile(ctx context.Context, file io.Reader, filename strin
 		Height:       result.Height,
 		Bytes:        result.Bytes,
 		CreatedAt:    result.CreatedAt,
-	}, nil
+	}
+
+	fmt.Printf("📦 UploadFile - returning result: %+v\n", uploadResult)
+	return uploadResult, nil
 }
 
 // UploadMultipartFile uploads a multipart file to Cloudinary
