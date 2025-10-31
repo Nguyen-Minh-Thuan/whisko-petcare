@@ -284,6 +284,10 @@ func main() {
 	createPetHandler := command.NewCreatePetWithUoWHandler(uowFactory, eventBus)
 	updatePetHandler := command.NewUpdatePetWithUoWHandler(uowFactory, eventBus)
 	deletePetHandler := command.NewDeletePetWithUoWHandler(uowFactory, eventBus)
+	addPetVaccinationHandler := command.NewAddPetVaccinationWithUoWHandler(uowFactory, eventBus)
+	addPetMedicalRecordHandler := command.NewAddPetMedicalRecordWithUoWHandler(uowFactory, eventBus)
+	addPetAllergyHandler := command.NewAddPetAllergyWithUoWHandler(uowFactory, eventBus)
+	removePetAllergyHandler := command.NewRemovePetAllergyWithUoWHandler(uowFactory, eventBus)
 
 	// Initialize pet query handlers
 	getPetHandler := query.NewGetPetHandler(petProjection)
@@ -346,6 +350,10 @@ func main() {
 		createPetHandler,
 		updatePetHandler,
 		deletePetHandler,
+		addPetVaccinationHandler,
+		addPetMedicalRecordHandler,
+		addPetAllergyHandler,
+		removePetAllergyHandler,
 		getPetHandler,
 		listUserPetsHandler,
 		listPetsHandler,
@@ -552,6 +560,38 @@ func main() {
 	})
 
 	mux.HandleFunc("/pets/", func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/pets/")
+		parts := strings.Split(path, "/")
+		
+		// Check for health endpoints: /pets/{id}/vaccinations, /pets/{id}/medical-records, /pets/{id}/allergies
+		if len(parts) >= 2 {
+			resource := parts[1]
+			
+			switch resource {
+			case "vaccinations":
+				if r.Method == http.MethodPost {
+					petController.AddPetVaccination(w, r)
+					return
+				}
+			case "medical-records":
+				if r.Method == http.MethodPost {
+					petController.AddPetMedicalRecord(w, r)
+					return
+				}
+			case "allergies":
+				if r.Method == http.MethodPost {
+					petController.AddPetAllergy(w, r)
+					return
+				}
+				// Handle DELETE /pets/{id}/allergies/{allergy_id}
+				if r.Method == http.MethodDelete && len(parts) >= 3 {
+					petController.RemovePetAllergy(w, r)
+					return
+				}
+			}
+		}
+		
+		// Default pet routes
 		switch r.Method {
 		case http.MethodGet:
 			petController.GetPet(w, r)

@@ -175,6 +175,16 @@ curl -X POST http://localhost:8080/services \
 
 **📖 For complete API documentation, see [SINGLE_CALL_IMAGE_UPLOAD.md](docs/SINGLE_CALL_IMAGE_UPLOAD.md)**
 
+### 🧪 Postman Collection for Testing
+
+For faster API testing with automated variable management, use the Postman collection:
+
+- **[Import Collection & Environment](postman/)** - Includes 20+ pre-configured requests
+- **Features**: Auto-saves IDs, realistic test data, automated tests
+- **Quick Start**: Import both JSON files → Select environment → Run collection
+
+See [postman/README.md](postman/README.md) for detailed usage instructions.
+
 ## 💡 Key Concepts
 
 - **Commands**: Change state and emit events
