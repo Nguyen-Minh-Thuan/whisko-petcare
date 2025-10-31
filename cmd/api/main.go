@@ -15,6 +15,7 @@ import (
 	"whisko-petcare/internal/application/services"
 	"whisko-petcare/internal/domain/event"
 	"whisko-petcare/internal/infrastructure/bus"
+	"whisko-petcare/internal/infrastructure/cloudinary"
 	httpHandler "whisko-petcare/internal/infrastructure/http"
 	"whisko-petcare/internal/infrastructure/mongo"
 	"whisko-petcare/internal/infrastructure/payos"
@@ -85,6 +86,26 @@ func main() {
 	payOSService, err := payos.NewService(payOSConfig)
 	if err != nil {
 		log.Fatal("Failed to initialize PayOS service:", err)
+	}
+
+	// Initialize Cloudinary service
+	var cloudinaryService *cloudinary.Service
+	var cloudinaryHandler *cloudinary.Handler
+	cloudinaryConfig, err := cloudinary.NewConfigFromEnv()
+	if err != nil {
+		log.Printf("⚠️  Warning: Cloudinary not configured: %v", err)
+		log.Println("Image upload features will be disabled. To enable:")
+		log.Println("  - Set CLOUDINARY_CLOUD_NAME in .env")
+		log.Println("  - Set CLOUDINARY_API_KEY in .env")
+		log.Println("  - Set CLOUDINARY_API_SECRET in .env")
+	} else {
+		cloudinaryService, err = cloudinary.NewService(cloudinaryConfig)
+		if err != nil {
+			log.Printf("⚠️  Warning: Failed to initialize Cloudinary service: %v", err)
+		} else {
+			cloudinaryHandler = cloudinary.NewHandler(cloudinaryService)
+			log.Println("✅ Cloudinary service initialized")
+		}
 	}
 
 	// Initialize projections
@@ -680,6 +701,38 @@ func main() {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
+
+	// Cloudinary image routes
+	if cloudinaryHandler != nil {
+		mux.HandleFunc("/api/images/upload", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				cloudinaryHandler.HandleUploadImage(w, r)
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+		})
+
+		mux.HandleFunc("/api/images/delete", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodDelete {
+				cloudinaryHandler.HandleDeleteImage(w, r)
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+		})
+
+		mux.HandleFunc("/api/images/transform", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				cloudinaryHandler.HandleGetTransformedURL(w, r)
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+		})
+
+		log.Println("✅ Cloudinary routes registered:")
+		log.Println("   POST   /api/images/upload")
+		log.Println("   DELETE /api/images/delete")
+		log.Println("   POST   /api/images/transform")
+	}
 
 	// Health check
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
