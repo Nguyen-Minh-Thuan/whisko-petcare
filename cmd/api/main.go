@@ -15,6 +15,7 @@ import (
 	"whisko-petcare/internal/application/services"
 	"whisko-petcare/internal/domain/event"
 	"whisko-petcare/internal/infrastructure/bus"
+	"whisko-petcare/internal/infrastructure/cloudinary"
 	httpHandler "whisko-petcare/internal/infrastructure/http"
 	"whisko-petcare/internal/infrastructure/mongo"
 	"whisko-petcare/internal/infrastructure/payos"
@@ -85,6 +86,28 @@ func main() {
 	payOSService, err := payos.NewService(payOSConfig)
 	if err != nil {
 		log.Fatal("Failed to initialize PayOS service:", err)
+	}
+
+	// Initialize Cloudinary service
+	var cloudinaryService *cloudinary.Service
+	var cloudinaryHandler *cloudinary.Handler
+	cloudinaryConfig, err := cloudinary.NewConfigFromEnv()
+	if err != nil {
+		log.Printf("⚠️  Warning: Cloudinary not configured: %v", err)
+		log.Println("Image upload features will be disabled. To enable:")
+		log.Println("  - Set CLOUDINARY_CLOUD_NAME in .env")
+		log.Println("  - Set CLOUDINARY_API_KEY in .env")
+		log.Println("  - Set CLOUDINARY_API_SECRET in .env")
+	} else {
+		log.Printf("📋 Cloudinary Config: CloudName=%s, APIKey=%s, Folder=%s", 
+			cloudinaryConfig.CloudName, cloudinaryConfig.APIKey, cloudinaryConfig.UploadFolder)
+		cloudinaryService, err = cloudinary.NewService(cloudinaryConfig)
+		if err != nil {
+			log.Printf("⚠️  Warning: Failed to initialize Cloudinary service: %v", err)
+		} else {
+			cloudinaryHandler = cloudinary.NewHandler(cloudinaryService)
+			log.Println("✅ Cloudinary service initialized")
+		}
 	}
 
 	// Initialize projections
@@ -236,6 +259,9 @@ func main() {
 	updateUserContactHandler := command.NewUpdateUserContactWithUoWHandler(uowFactory, eventBus)
 	deleteUserHandler := command.NewDeleteUserWithUoWHandler(uowFactory, eventBus)
 
+	// Update image handlers
+	updateUserImageHandler := command.NewUpdateUserImageWithUoWHandler(uowFactory, eventBus)
+
 	// Initialize query handlers
 	getUserHandler := query.NewGetUserHandler(userProjection)
 	listUsersHandler := query.NewListUsersHandler(userProjection)
@@ -310,6 +336,7 @@ func main() {
 		updateUserProfileHandler,
 		updateUserContactHandler,
 		deleteUserHandler,
+		updateUserImageHandler,
 		getUserHandler,
 		listUsersHandler,
 		searchUsersHandler,
@@ -375,7 +402,7 @@ func main() {
 	recordLoginHandler := command.NewRecordUserLoginWithUoWHandler(uowFactory, eventBus)
 
 	// Initialize HTTP controllers
-	userController := httpHandler.NewHTTPUserController(userService)
+	userController := httpHandler.NewHTTPUserController(userService, cloudinaryService)
 	authController := httpHandler.NewHTTPAuthController(registerHandler, changePasswordHandler, recordLoginHandler, concreteUserProjection, jwtManager)
 	paymentController := httpHandler.NewHTTPPaymentController(
 		createPaymentHandler,
@@ -386,9 +413,9 @@ func main() {
 		listUserPaymentsHandler,
 		payOSService,
 	)
-	petController := httpHandler.NewHTTPPetController(petService)
-	vendorController := httpHandler.NewVendorController(vendorService)
-	serviceController := httpHandler.NewHTTPServiceController(serviceService)
+	petController := httpHandler.NewHTTPPetController(petService, cloudinaryService)
+	vendorController := httpHandler.NewVendorController(vendorService, cloudinaryService)
+	serviceController := httpHandler.NewHTTPServiceController(serviceService, cloudinaryService)
 	scheduleController := httpHandler.NewScheduleController(scheduleService)
 	vendorStaffController := httpHandler.NewVendorStaffController(vendorStaffService)
 
@@ -419,6 +446,11 @@ func main() {
 		}
 		if strings.Contains(r.URL.Path, "/vendor-staffs") && r.Method == http.MethodGet {
 			vendorStaffController.ListVendorStaffByUser(w, r)
+			return
+		}
+		// Update image endpoint: PUT /users/{id}/image
+		if strings.HasSuffix(r.URL.Path, "/image") && r.Method == http.MethodPut {
+			userController.UpdateUserImage(w, r)
 			return
 		}
 		
@@ -682,6 +714,50 @@ func main() {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
+
+	// Cloudinary image routes
+	if cloudinaryHandler != nil {
+		mux.HandleFunc("/api/images/upload", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				cloudinaryHandler.HandleUploadImage(w, r)
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+		})
+
+		mux.HandleFunc("/api/images/delete", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodDelete {
+				cloudinaryHandler.HandleDeleteImage(w, r)
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+		})
+
+		mux.HandleFunc("/api/images/transform", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				cloudinaryHandler.HandleGetTransformedURL(w, r)
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+		})
+
+		log.Println("✅ Cloudinary routes registered:")
+		log.Println("   POST   /api/images/upload")
+		log.Println("   DELETE /api/images/delete")
+		log.Println("   POST   /api/images/transform")
+	}
+
+	// API routes for services
+	mux.HandleFunc("/api/services/vendor/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			// Extract vendor ID from path: /api/services/vendor/{vendorID}
+			serviceController.ListVendorServices(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+	log.Println("✅ Service API routes registered:")
+	log.Println("   GET    /api/services/vendor/{vendorID}")
 
 	// Health check
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

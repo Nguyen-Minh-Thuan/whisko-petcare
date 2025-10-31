@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"whisko-petcare/internal/domain/event"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -19,6 +20,7 @@ type ServiceReadModel struct {
 	Description string    `bson:"description" json:"description"`
 	Price       int       `bson:"price" json:"price"`             // Price in VND
 	Duration    int       `bson:"duration" json:"duration"`       // Duration in minutes
+	Tags        []string  `bson:"tags" json:"tags"`
 	IsActive    bool      `bson:"is_active" json:"is_active"`
 	CreatedAt   time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt   time.Time `bson:"updated_at" json:"updated_at"`
@@ -151,6 +153,7 @@ func (p *MongoServiceProjection) HandleServiceCreated(ctx context.Context, evt e
 		Description: evt.Description,
 		Price:       evt.Price,
 		Duration:    durationMinutes,
+		Tags:        evt.Tags,
 		IsActive:    true,
 		CreatedAt:   evt.Timestamp,
 		UpdatedAt:   evt.Timestamp,
@@ -175,6 +178,7 @@ func (p *MongoServiceProjection) HandleServiceUpdated(ctx context.Context, evt e
 			"description": evt.Description,
 			"price":       evt.Price,
 			"duration":    durationMinutes,
+			"tags":        evt.Tags,
 			"updated_at":  evt.Timestamp,
 		},
 	}

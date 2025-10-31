@@ -31,6 +31,7 @@ type User struct {
 	address        string
 	hashedPassword string
 	role           UserRole
+	imageUrl       string
 	lastLoginAt    *time.Time
 	version        int
 	createdAt      time.Time
@@ -40,7 +41,7 @@ type User struct {
 	uncommittedEvents []event.DomainEvent
 }
 
-func NewUser(id, name, email string) (*User, error) {
+func NewUser(id, name, email string, imageUrl ...string) (*User, error) {
 	if id == "" {
 		return nil, fmt.Errorf("id cannot be empty")
 	}
@@ -62,6 +63,11 @@ func NewUser(id, name, email string) (*User, error) {
 		isActive:  true,
 	}
 
+	// Set imageUrl if provided
+	if len(imageUrl) > 0 && imageUrl[0] != "" {
+		user.imageUrl = imageUrl[0]
+	}
+
 	user.raiseEvent(&event.UserCreated{
 		UserID:         id,
 		Name:           name,
@@ -70,6 +76,7 @@ func NewUser(id, name, email string) (*User, error) {
 		Address:        user.address,
 		HashedPassword: user.hashedPassword, // Empty for non-auth users
 		Role:           string(user.role),
+		ImageUrl:       user.imageUrl,
 		IsActive:       user.isActive,
 		Timestamp:      user.createdAt,
 	})
@@ -165,6 +172,17 @@ func (u *User) UpdateProfile(name, email string) error {
 		UserID:       u.id,
 		Name:         name,
 		Email:        email,
+		EventVersion: u.version + 1,
+		Timestamp:    time.Now(),
+	})
+
+	return nil
+}
+
+func (u *User) UpdateImageUrl(imageUrl string) error {
+	u.raiseEvent(&event.UserImageUpdated{
+		UserID:       u.id,
+		ImageUrl:     imageUrl,
 		EventVersion: u.version + 1,
 		Timestamp:    time.Now(),
 	})
@@ -361,6 +379,11 @@ func (u *User) applyEvent(ev event.DomainEvent) error {
 		u.version = e.EventVersion
 		u.updatedAt = e.Timestamp
 
+	case *event.UserImageUpdated:
+		u.imageUrl = e.ImageUrl
+		u.version = e.EventVersion
+		u.updatedAt = e.Timestamp
+
 	case *event.UserDeleted:
 		u.version = e.EventVersion
 		u.updatedAt = e.Timestamp
@@ -381,6 +404,7 @@ func (u *User) Phone() string           { return u.phone }
 func (u *User) Address() string         { return u.address }
 func (u *User) HashedPassword() string  { return u.hashedPassword }
 func (u *User) Role() UserRole          { return u.role }
+func (u *User) ImageUrl() string        { return u.imageUrl }
 func (u *User) LastLoginAt() *time.Time { return u.lastLoginAt }
 func (u *User) Version() int            { return u.version }
 func (u *User) CreatedAt() time.Time    { return u.createdAt }

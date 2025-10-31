@@ -59,8 +59,8 @@ func (h *CreatePetWithUoWHandler) Handle(ctx context.Context, cmd *CreatePet) er
 		return errors.NewInternalError(fmt.Sprintf("failed to begin transaction: %v", err))
 	}
 
-	// Create pet aggregate
-	pet, err := aggregate.NewPet(cmd.UserID, cmd.Name, cmd.Species, cmd.Breed, cmd.Age, cmd.Weight)
+	// Create pet aggregate (with optional imageUrl)
+	pet, err := aggregate.NewPet(cmd.UserID, cmd.Name, cmd.Species, cmd.Breed, cmd.Age, cmd.Weight, cmd.ImageUrl)
 	if err != nil {
 		uow.Rollback(ctx)
 		return errors.NewValidationError(fmt.Sprintf("failed to create pet: %v", err))

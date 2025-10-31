@@ -33,8 +33,8 @@ func (h *CreateUserWithUoWHandler) Handle(ctx context.Context, cmd *CreateUser) 
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	// Create user aggregate
-	user, err := aggregate.NewUser(cmd.UserID, cmd.Name, cmd.Email)
+	// Create user aggregate (with optional imageUrl)
+	user, err := aggregate.NewUser(cmd.UserID, cmd.Name, cmd.Email, cmd.ImageUrl)
 	if err != nil {
 		uow.Rollback(ctx)
 		return errors.NewValidationError(fmt.Sprintf("invalid user data: %v", err))
