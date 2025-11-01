@@ -10,9 +10,13 @@ import (
 // PetService orchestrates pet operations
 type PetService struct {
 	// Command handlers (using Unit of Work)
-	createPetHandler *command.CreatePetWithUoWHandler
-	updatePetHandler *command.UpdatePetWithUoWHandler
-	deletePetHandler *command.DeletePetWithUoWHandler
+	createPetHandler             *command.CreatePetWithUoWHandler
+	updatePetHandler             *command.UpdatePetWithUoWHandler
+	deletePetHandler             *command.DeletePetWithUoWHandler
+	addPetVaccinationHandler     *command.AddPetVaccinationWithUoWHandler
+	addPetMedicalRecordHandler   *command.AddPetMedicalRecordWithUoWHandler
+	addPetAllergyHandler         *command.AddPetAllergyWithUoWHandler
+	removePetAllergyHandler      *command.RemovePetAllergyWithUoWHandler
 
 	// Query handlers (using Projections)
 	getPetHandler       *query.GetPetHandler
@@ -25,17 +29,25 @@ func NewPetService(
 	createPetHandler *command.CreatePetWithUoWHandler,
 	updatePetHandler *command.UpdatePetWithUoWHandler,
 	deletePetHandler *command.DeletePetWithUoWHandler,
+	addPetVaccinationHandler *command.AddPetVaccinationWithUoWHandler,
+	addPetMedicalRecordHandler *command.AddPetMedicalRecordWithUoWHandler,
+	addPetAllergyHandler *command.AddPetAllergyWithUoWHandler,
+	removePetAllergyHandler *command.RemovePetAllergyWithUoWHandler,
 	getPetHandler *query.GetPetHandler,
 	listUserPetsHandler *query.ListUserPetsHandler,
 	listPetsHandler *query.ListPetsHandler,
 ) *PetService {
 	return &PetService{
-		createPetHandler:    createPetHandler,
-		updatePetHandler:    updatePetHandler,
-		deletePetHandler:    deletePetHandler,
-		getPetHandler:       getPetHandler,
-		listUserPetsHandler: listUserPetsHandler,
-		listPetsHandler:     listPetsHandler,
+		createPetHandler:           createPetHandler,
+		updatePetHandler:           updatePetHandler,
+		deletePetHandler:           deletePetHandler,
+		addPetVaccinationHandler:   addPetVaccinationHandler,
+		addPetMedicalRecordHandler: addPetMedicalRecordHandler,
+		addPetAllergyHandler:       addPetAllergyHandler,
+		removePetAllergyHandler:    removePetAllergyHandler,
+		getPetHandler:              getPetHandler,
+		listUserPetsHandler:        listUserPetsHandler,
+		listPetsHandler:            listPetsHandler,
 	}
 }
 
@@ -78,4 +90,26 @@ func (s *PetService) ListPets(ctx context.Context, offset, limit int) ([]*projec
 		Offset: offset,
 		Limit:  limit,
 	})
+}
+
+// Health operations
+
+// AddPetVaccination adds a vaccination record to a pet
+func (s *PetService) AddPetVaccination(ctx context.Context, cmd command.AddPetVaccination) error {
+	return s.addPetVaccinationHandler.Handle(ctx, &cmd)
+}
+
+// AddPetMedicalRecord adds a medical record to a pet
+func (s *PetService) AddPetMedicalRecord(ctx context.Context, cmd command.AddPetMedicalRecord) error {
+	return s.addPetMedicalRecordHandler.Handle(ctx, &cmd)
+}
+
+// AddPetAllergy adds an allergy to a pet
+func (s *PetService) AddPetAllergy(ctx context.Context, cmd command.AddPetAllergy) error {
+	return s.addPetAllergyHandler.Handle(ctx, &cmd)
+}
+
+// RemovePetAllergy removes an allergy from a pet
+func (s *PetService) RemovePetAllergy(ctx context.Context, cmd command.RemovePetAllergy) error {
+	return s.removePetAllergyHandler.Handle(ctx, &cmd)
 }

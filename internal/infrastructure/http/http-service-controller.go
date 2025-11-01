@@ -2,12 +2,15 @@ package http
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"whisko-petcare/internal/application/command"
 	"whisko-petcare/internal/application/services"
+	"whisko-petcare/internal/infrastructure/cloudinary"
 	"whisko-petcare/pkg/errors"
 	"whisko-petcare/pkg/middleware"
 	"whisko-petcare/pkg/response"
@@ -15,37 +18,104 @@ import (
 
 // HTTPServiceController handles HTTP requests for service operations
 type HTTPServiceController struct {
-	service *services.ServiceService
+	service    *services.ServiceService
+	cloudinary *cloudinary.Service
 }
 
 // NewHTTPServiceController creates a new HTTP service controller
-func NewHTTPServiceController(service *services.ServiceService) *HTTPServiceController {
+func NewHTTPServiceController(service *services.ServiceService, cloudinary *cloudinary.Service) *HTTPServiceController {
 	return &HTTPServiceController{
-		service: service,
+		service:    service,
+		cloudinary: cloudinary,
 	}
 }
 
-// CreateService handles POST /services
+// CreateService handles POST /services - supports both JSON and multipart/form-data with image
 func (c *HTTPServiceController) CreateService(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		VendorID    string `json:"vendor_id"`
-		Name        string `json:"name"`
-		Description string `json:"description,omitempty"`
-		Price       int    `json:"price"`
-		Duration    int    `json:"duration_minutes"`
-	}
+	var vendorID, name, description, imageUrl string
+	var price, duration int
+	var tags []string
+	serviceID := fmt.Sprintf("service_%d", time.Now().UnixNano())
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
-		return
+	// Check if multipart form (with image file)
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			middleware.HandleError(w, r, errors.NewValidationError("Failed to parse form"))
+			return
+		}
+
+		// Get form fields
+		vendorID = r.FormValue("vendor_id")
+		name = r.FormValue("name")
+		description = r.FormValue("description")
+		
+		if priceStr := r.FormValue("price"); priceStr != "" {
+			price, _ = strconv.Atoi(priceStr)
+		}
+		if durationStr := r.FormValue("duration_minutes"); durationStr != "" {
+			duration, _ = strconv.Atoi(durationStr)
+		}
+		
+		// Parse tags if provided (comma-separated)
+		if tagsStr := r.FormValue("tags"); tagsStr != "" {
+			tags = strings.Split(tagsStr, ",")
+			for i := range tags {
+				tags[i] = strings.TrimSpace(tags[i])
+			}
+		}
+
+		// Check if image file is provided
+		file, fileHeader, err := r.FormFile("image")
+		if err == nil {
+			defer file.Close()
+			
+			// Upload to Cloudinary
+			if c.cloudinary == nil {
+				middleware.HandleError(w, r, errors.NewInternalError("Cloudinary not configured"))
+				return
+			}
+			
+			uploadRes, err := c.cloudinary.UploadServiceImage(r.Context(), file, fileHeader.Filename, serviceID)
+			if err != nil {
+				middleware.HandleError(w, r, errors.NewInternalError(fmt.Sprintf("Failed to upload image: %v", err)))
+				return
+			}
+			imageUrl = uploadRes.SecureURL
+		}
+	} else {
+		// JSON body
+		var req struct {
+			VendorID    string   `json:"vendor_id"`
+			Name        string   `json:"name"`
+			Description string   `json:"description,omitempty"`
+			Price       int      `json:"price"`
+			Duration    int      `json:"duration_minutes"`
+			Tags        []string `json:"tags,omitempty"`
+			ImageUrl    string   `json:"image_url,omitempty"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
+			return
+		}
+
+		vendorID = req.VendorID
+		name = req.Name
+		description = req.Description
+		price = req.Price
+		duration = req.Duration
+		tags = req.Tags
+		imageUrl = req.ImageUrl
 	}
 
 	cmd := command.CreateService{
-		VendorID:    req.VendorID,
-		Name:        req.Name,
-		Description: req.Description,
-		Price:       req.Price,
-		Duration:    req.Duration,
+		VendorID:    vendorID,
+		Name:        name,
+		Description: description,
+		Price:       price,
+		Duration:    duration,
+		Tags:        tags,
+		ImageUrl:    imageUrl,
 	}
 
 	if err := c.service.CreateService(r.Context(), &cmd); err != nil {
@@ -54,7 +124,11 @@ func (c *HTTPServiceController) CreateService(w http.ResponseWriter, r *http.Req
 	}
 
 	responseData := map[string]interface{}{
-		"message": "Service created successfully",
+		"message":    "Service created successfully",
+		"service_id": serviceID,
+	}
+	if imageUrl != "" {
+		responseData["image_url"] = imageUrl
 	}
 	response.SendCreated(w, r, responseData)
 }
@@ -109,11 +183,20 @@ func (c *HTTPServiceController) ListServices(w http.ResponseWriter, r *http.Requ
 	response.SendSuccess(w, r, services)
 }
 
-// ListVendorServices handles GET /vendors/{id}/services
+// ListVendorServices handles GET /vendors/{id}/services and GET /api/services/vendor/{id}
 func (c *HTTPServiceController) ListVendorServices(w http.ResponseWriter, r *http.Request) {
-	// Extract vendor ID from URL path
-	path := strings.TrimPrefix(r.URL.Path, "/vendors/")
-	vendorID := strings.Split(path, "/")[0]
+	// Extract vendor ID from URL path - supports both patterns
+	var vendorID string
+	
+	if strings.HasPrefix(r.URL.Path, "/api/services/vendor/") {
+		// Pattern: /api/services/vendor/{vendorID}
+		path := strings.TrimPrefix(r.URL.Path, "/api/services/vendor/")
+		vendorID = strings.Split(path, "/")[0]
+	} else {
+		// Pattern: /vendors/{vendorID}/services
+		path := strings.TrimPrefix(r.URL.Path, "/vendors/")
+		vendorID = strings.Split(path, "/")[0]
+	}
 	
 	if vendorID == "" {
 		middleware.HandleError(w, r, errors.NewValidationError("Vendor ID is required"))
@@ -160,10 +243,11 @@ func (c *HTTPServiceController) UpdateService(w http.ResponseWriter, r *http.Req
 	}
 
 	var req struct {
-		Name        string `json:"name,omitempty"`
-		Description string `json:"description,omitempty"`
-		Price       int    `json:"price,omitempty"`
-		Duration    int    `json:"duration_minutes,omitempty"`
+		Name        string   `json:"name,omitempty"`
+		Description string   `json:"description,omitempty"`
+		Price       int      `json:"price,omitempty"`
+		Duration    int      `json:"duration_minutes,omitempty"`
+		Tags        []string `json:"tags,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -177,6 +261,7 @@ func (c *HTTPServiceController) UpdateService(w http.ResponseWriter, r *http.Req
 		Description: req.Description,
 		Price:       req.Price,
 		Duration:    req.Duration,
+		Tags:        req.Tags,
 	}
 
 	if err := c.service.UpdateService(r.Context(), &cmd); err != nil {

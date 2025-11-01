@@ -59,12 +59,9 @@ func (h *ListUserSchedulesHandler) Handle(ctx context.Context, userID string, of
 		return nil, errors.NewValidationError("user_id is required")
 	}
 
-	// Set default limit if not provided
+	// No limit - return all schedules for the user
 	if limit == 0 {
-		limit = 10
-	}
-	if limit > 100 {
-		limit = 100
+		limit = 0 // 0 means no limit in MongoDB
 	}
 
 	schedules, err := h.projection.GetByUserID(ctx, userID, offset, limit)
@@ -93,12 +90,9 @@ func (h *ListShopSchedulesHandler) Handle(ctx context.Context, shopID string, of
 		return nil, errors.NewValidationError("shop_id is required")
 	}
 
-	// Set default limit if not provided
+	// No limit - return all schedules for the shop
 	if limit == 0 {
-		limit = 10
-	}
-	if limit > 100 {
-		limit = 100
+		limit = 0 // 0 means no limit in MongoDB
 	}
 
 	schedules, err := h.projection.GetByShopID(ctx, shopID, offset, limit)

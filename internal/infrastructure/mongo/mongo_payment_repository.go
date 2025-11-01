@@ -3,10 +3,12 @@ package mongo
 import (
 	"context"
 	"fmt"
+	"time"
 	"whisko-petcare/internal/domain/aggregate"
 	"whisko-petcare/internal/domain/event"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -80,6 +82,11 @@ func (r *MongoPaymentRepository) Save(ctx context.Context, payment *aggregate.Pa
 		"checkout_url":         payment.CheckoutURL(),
 		"qr_code":              payment.QRCode(),
 		"expired_at":           payment.ExpiredAt(),
+		"vendor_id":            payment.VendorID(),
+		"pet_id":               payment.PetID(),
+		"service_ids":          payment.ServiceIDs(),
+		"start_time":           payment.StartTime(),
+		"end_time":             payment.EndTime(),
 		"version":              payment.Version(),
 		"created_at":           payment.CreatedAt(),
 		"updated_at":           payment.UpdatedAt(),
@@ -165,6 +172,38 @@ func (r *MongoPaymentRepository) GetByUserID(ctx context.Context, userID string,
 	return payments, nil
 }
 
+// GetByStatus retrieves all payments with a specific status from MongoDB
+func (r *MongoPaymentRepository) GetByStatus(ctx context.Context, status string) ([]*aggregate.Payment, error) {
+	ctx = r.getContext(ctx)
+
+	cursor, err := r.entityCollection.Find(ctx, bson.M{"status": status})
+	if err != nil {
+		return nil, fmt.Errorf("failed to find payments by status: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var payments []*aggregate.Payment
+	for cursor.Next(ctx) {
+		var doc bson.M
+		if err := cursor.Decode(&doc); err != nil {
+			return nil, fmt.Errorf("failed to decode payment: %w", err)
+		}
+
+		payment, err := r.documentToPayment(doc)
+		if err != nil {
+			return nil, err
+		}
+
+		payments = append(payments, payment)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %w", err)
+	}
+
+	return payments, nil
+}
+
 // SaveEvents saves events for a payment aggregate
 func (r *MongoPaymentRepository) SaveEvents(ctx context.Context, aggregateID string, events []event.DomainEvent, expectedVersion int) error {
 	ctx = r.getContext(ctx)
@@ -234,20 +273,45 @@ func (r *MongoPaymentRepository) documentToPayment(doc bson.M) (*aggregate.Payme
 		items = append(items, item)
 	}
 
-	// Create payment (this bypasses the business logic validation for reconstruction)
-	payment, err := aggregate.NewPayment(
+	// Extract service IDs
+	var serviceIDs []string
+	if serviceIDsData, ok := doc["service_ids"].(bson.A); ok {
+		for _, sid := range serviceIDsData {
+			if sidStr, ok := sid.(string); ok {
+				serviceIDs = append(serviceIDs, sidStr)
+			}
+		}
+	}
+
+	// Handle legacy payments without schedule fields by using ReconstructPayment
+	vendorID := getString(doc, "vendor_id")
+	petID := getString(doc, "pet_id")
+	startTime := getTime(doc, "start_time")
+	endTime := getTime(doc, "end_time")
+
+	// Use ReconstructPayment for legacy data (bypasses validation)
+	payment := aggregate.ReconstructPayment(
+		getString(doc, "_id"),
+		int64(getIntValue(doc, "order_code")),
 		getString(doc, "user_id"),
 		getIntValue(doc, "amount"),
 		getString(doc, "description"),
 		items,
+		aggregate.PaymentStatus(getString(doc, "status")),
+		aggregate.PaymentMethod(getString(doc, "method")),
+		getString(doc, "payos_transaction_id"),
+		getString(doc, "checkout_url"),
+		getString(doc, "qr_code"),
+		getTime(doc, "expired_at"),
+		vendorID,
+		petID,
+		serviceIDs,
+		startTime,
+		endTime,
+		getIntValue(doc, "version"),
+		getTime(doc, "created_at"),
+		getTime(doc, "updated_at"),
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create payment from document: %w", err)
-	}
-
-	// Set additional fields that NewPayment doesn't set
-	payment.SetID(getString(doc, "_id"))
-	payment.SetVersion(getIntValue(doc, "version"))
 
 	return payment, nil
 }
@@ -264,4 +328,14 @@ func getIntValue(doc bson.M, key string) int {
 		return val
 	}
 	return 0
+}
+
+func getTime(doc bson.M, key string) time.Time {
+	if val, ok := doc[key].(primitive.DateTime); ok {
+		return val.Time()
+	}
+	if val, ok := doc[key].(time.Time); ok {
+		return val
+	}
+	return time.Time{}
 }

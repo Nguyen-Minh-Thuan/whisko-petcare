@@ -1,9 +1,9 @@
 package aggregate
 
-import(
+import (
+	"fmt"
 	"time"
 	"whisko-petcare/internal/domain/event"
-	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -17,15 +17,21 @@ type Pet struct {
 	description      string
 	age              int
 	weight           float64
+	imageUrl         string
 	version          int
 	createdAt        time.Time
 	updatedAt        time.Time
 	isActive         bool
 
+	// Health data
+	vaccinationRecords []event.VaccinationRecord
+	medicalHistory     []event.MedicalRecord
+	allergies          []event.Allergy
+
 	uncommittedEvents []event.DomainEvent
 }
 
-func NewPet(userID, name, species, breed string, age int, weight float64) (*Pet, error) {
+func NewPet(userID, name, species, breed string, age int, weight float64, imageUrl ...string) (*Pet, error) {
 	if userID == "" {
 		return nil, fmt.Errorf("userID cannot be empty")
 	}
@@ -53,6 +59,11 @@ func NewPet(userID, name, species, breed string, age int, weight float64) (*Pet,
 		isActive:  true,
 	}
 
+	// Set imageUrl if provided
+	if len(imageUrl) > 0 && imageUrl[0] != "" {
+		pet.imageUrl = imageUrl[0]
+	}
+
 	pet.raiseEvent(&event.PetCreated{
 		PetID:     pet.id,
 		UserID:    userID,
@@ -61,6 +72,7 @@ func NewPet(userID, name, species, breed string, age int, weight float64) (*Pet,
 		Breed:     breed,
 		Age:       age,
 		Weight:    weight,
+		ImageUrl:  pet.imageUrl,
 		Timestamp: pet.createdAt,
 	})
 
@@ -106,9 +118,133 @@ func (p *Pet) UpdateProfile(name, species, breed string, age int, weight float64
 	return nil
 }
 
+func (p *Pet) UpdateImageUrl(imageUrl string) error {
+	if imageUrl == "" {
+		return fmt.Errorf("imageUrl cannot be empty")
+	}
+	p.raiseEvent(&event.PetImageUpdated{
+		PetID:        p.id,
+		ImageUrl:     imageUrl,
+		EventVersion: p.version + 1,
+		Timestamp:    time.Now(),
+	})
+	return nil
+}
+
 func (p *Pet) Delete() error {
 	p.raiseEvent(&event.PetDeleted{
 		PetID:        p.id,
+		EventVersion: p.version + 1,
+		Timestamp:    time.Now(),
+	})
+	return nil
+}
+
+// Health management methods
+
+func (p *Pet) AddVaccinationRecord(vaccineName string, date, nextDueDate time.Time, veterinarian, notes string) error {
+	if vaccineName == "" {
+		return fmt.Errorf("vaccine name cannot be empty")
+	}
+	if date.IsZero() {
+		return fmt.Errorf("vaccination date cannot be empty")
+	}
+
+	record := event.VaccinationRecord{
+		ID:           uuid.New().String(),
+		VaccineName:  vaccineName,
+		Date:         date,
+		NextDueDate:  nextDueDate,
+		Veterinarian: veterinarian,
+		Notes:        notes,
+	}
+
+	p.raiseEvent(&event.PetVaccinationAdded{
+		PetID:        p.id,
+		Record:       record,
+		EventVersion: p.version + 1,
+		Timestamp:    time.Now(),
+	})
+	return nil
+}
+
+func (p *Pet) AddMedicalRecord(date time.Time, description, treatment, veterinarian, diagnosis, notes string) error {
+	if date.IsZero() {
+		return fmt.Errorf("medical record date cannot be empty")
+	}
+	if description == "" {
+		return fmt.Errorf("description cannot be empty")
+	}
+
+	record := event.MedicalRecord{
+		ID:           uuid.New().String(),
+		Date:         date,
+		Description:  description,
+		Treatment:    treatment,
+		Veterinarian: veterinarian,
+		Diagnosis:    diagnosis,
+		Notes:        notes,
+	}
+
+	p.raiseEvent(&event.PetMedicalRecordAdded{
+		PetID:        p.id,
+		Record:       record,
+		EventVersion: p.version + 1,
+		Timestamp:    time.Now(),
+	})
+	return nil
+}
+
+func (p *Pet) AddAllergy(allergen, severity, symptoms string, diagnosedDate time.Time, notes string) error {
+	if allergen == "" {
+		return fmt.Errorf("allergen cannot be empty")
+	}
+	if severity == "" {
+		severity = "mild"
+	}
+	// Validate severity
+	if severity != "mild" && severity != "moderate" && severity != "severe" {
+		return fmt.Errorf("invalid severity: must be 'mild', 'moderate', or 'severe'")
+	}
+
+	allergy := event.Allergy{
+		ID:            uuid.New().String(),
+		Allergen:      allergen,
+		Severity:      severity,
+		Symptoms:      symptoms,
+		DiagnosedDate: diagnosedDate,
+		Notes:         notes,
+	}
+
+	p.raiseEvent(&event.PetAllergyAdded{
+		PetID:        p.id,
+		Allergy:      allergy,
+		EventVersion: p.version + 1,
+		Timestamp:    time.Now(),
+	})
+	return nil
+}
+
+func (p *Pet) RemoveAllergy(allergyID string) error {
+	if allergyID == "" {
+		return fmt.Errorf("allergy ID cannot be empty")
+	}
+
+	// Check if allergy exists
+	found := false
+	for _, a := range p.allergies {
+		if a.ID == allergyID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("allergy not found: %s", allergyID)
+	}
+
+	p.raiseEvent(&event.PetAllergyRemoved{
+		PetID:        p.id,
+		AllergyID:    allergyID,
 		EventVersion: p.version + 1,
 		Timestamp:    time.Now(),
 	})
@@ -168,6 +304,37 @@ func (p *Pet) applyEvent(ev event.DomainEvent) error {
 		p.updatedAt = e.Timestamp
 		p.isActive = false
 		
+	case *event.PetImageUpdated:
+		p.imageUrl = e.ImageUrl
+		p.version = e.EventVersion
+		p.updatedAt = e.Timestamp
+	
+	case *event.PetVaccinationAdded:
+		p.vaccinationRecords = append(p.vaccinationRecords, e.Record)
+		p.version = e.EventVersion
+		p.updatedAt = e.Timestamp
+	
+	case *event.PetMedicalRecordAdded:
+		p.medicalHistory = append(p.medicalHistory, e.Record)
+		p.version = e.EventVersion
+		p.updatedAt = e.Timestamp
+	
+	case *event.PetAllergyAdded:
+		p.allergies = append(p.allergies, e.Allergy)
+		p.version = e.EventVersion
+		p.updatedAt = e.Timestamp
+	
+	case *event.PetAllergyRemoved:
+		// Remove allergy from slice
+		for i, a := range p.allergies {
+			if a.ID == e.AllergyID {
+				p.allergies = append(p.allergies[:i], p.allergies[i+1:]...)
+				break
+			}
+		}
+		p.version = e.EventVersion
+		p.updatedAt = e.Timestamp
+		
 	default:
 		return fmt.Errorf("unknown event type: %T", ev)
 	}
@@ -183,16 +350,27 @@ func (p *Pet) Species() string   { return p.species }
 func (p *Pet) Breed() string     { return p.breed }
 func (p *Pet) Age() int          { return p.age }
 func (p *Pet) Weight() float64   { return p.weight }
+func (p *Pet) ImageUrl() string  { return p.imageUrl }
 func (p *Pet) Version() int      { return p.version }
 func (p *Pet) CreatedAt() time.Time { return p.createdAt }
 func (p *Pet) UpdatedAt() time.Time { return p.updatedAt }
 func (p *Pet) IsActive() bool       { return p.isActive }
+
+// Health data getters
+func (p *Pet) VaccinationRecords() []event.VaccinationRecord { return p.vaccinationRecords }
+func (p *Pet) MedicalHistory() []event.MedicalRecord         { return p.medicalHistory }
+func (p *Pet) Allergies() []event.Allergy                    { return p.allergies }
 
 //Entity interface implementation
 func (p *Pet) GetID() string    { return p.id }
 func (p *Pet) GetVersion() int  { return p.version }
 func (p *Pet) SetVersion(v int) { p.version = v }
 func (p *Pet) MarkInactive() 	{ p.isActive = false }
+
+// Repository helper methods - for database reconstruction only
+func (p *Pet) SetVaccinationRecords(records []event.VaccinationRecord) { p.vaccinationRecords = records }
+func (p *Pet) SetMedicalHistory(records []event.MedicalRecord)         { p.medicalHistory = records }
+func (p *Pet) SetAllergies(allergies []event.Allergy)                  { p.allergies = allergies }
 
 func (p *Pet) MarkEventsAsCommitted(){
 	p.uncommittedEvents = nil

@@ -40,6 +40,8 @@ type UploadImageResponse struct {
 
 // HandleUploadImage handles image upload requests
 func (h *Handler) HandleUploadImage(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("🔵 HandleUploadImage - Request received")
+	
 	if r.Method != http.MethodPost {
 		response.SendError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Only POST method is allowed")
 		return
@@ -47,29 +49,36 @@ func (h *Handler) HandleUploadImage(w http.ResponseWriter, r *http.Request) {
 
 	// Parse multipart form (max 10MB)
 	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		fmt.Printf("❌ HandleUploadImage - Failed to parse form: %v\n", err)
 		response.SendError(w, r, http.StatusBadRequest, "INVALID_FORM", "Failed to parse multipart form")
 		return
 	}
+	fmt.Println("✅ HandleUploadImage - Form parsed successfully")
 
 	// Get the file from the form
 	file, fileHeader, err := r.FormFile("image")
 	if err != nil {
+		fmt.Printf("❌ HandleUploadImage - No file found: %v\n", err)
 		response.SendError(w, r, http.StatusBadRequest, "MISSING_FILE", "Image file is required")
 		return
 	}
 	defer file.Close()
+	fmt.Printf("✅ HandleUploadImage - File received: %s (size=%d bytes)\n", fileHeader.Filename, fileHeader.Size)
 
 	// Validate file type
 	contentType := fileHeader.Header.Get("Content-Type")
 	if !strings.HasPrefix(contentType, "image/") {
+		fmt.Printf("❌ HandleUploadImage - Invalid content type: %s\n", contentType)
 		response.SendError(w, r, http.StatusBadRequest, "INVALID_FILE_TYPE", "File must be an image")
 		return
 	}
+	fmt.Printf("✅ HandleUploadImage - Content-Type validated: %s\n", contentType)
 
 	// Parse request parameters
 	entityType := r.FormValue("entity_type")
 	entityID := r.FormValue("entity_id")
 	folder := r.FormValue("folder")
+	fmt.Printf("📋 HandleUploadImage - Params: entity_type=%s, entity_id=%s, folder=%s\n", entityType, entityID, folder)
 
 	var result *UploadResult
 
@@ -97,6 +106,13 @@ func (h *Handler) HandleUploadImage(w http.ResponseWriter, r *http.Request) {
 		}
 		result, err = h.service.UploadUserAvatar(ctx, file, fileHeader.Filename, entityID)
 
+	case "service":
+		if entityID == "" {
+			response.SendError(w, r, http.StatusBadRequest, "MISSING_ENTITY_ID", "Entity ID is required for service uploads")
+			return
+		}
+		result, err = h.service.UploadServiceImage(ctx, file, fileHeader.Filename, entityID)
+
 	default:
 		// General upload
 		opts := &UploadOptions{
@@ -110,9 +126,21 @@ func (h *Handler) HandleUploadImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
+		fmt.Printf("❌ HandleUploadImage - upload failed: %v\n", err)
 		response.SendError(w, r, http.StatusInternalServerError, "UPLOAD_FAILED", fmt.Sprintf("Failed to upload image: %v", err))
 		return
 	}
+
+	// Defensive: if result is nil, return error
+	if result == nil {
+		fmt.Printf("❌ HandleUploadImage - upload result is nil (entity_type=%s, entity_id=%s)\n", entityType, entityID)
+		response.SendError(w, r, http.StatusInternalServerError, "UPLOAD_FAILED", "Upload result is empty")
+		return
+	}
+
+	// Debug: print upload result
+	fmt.Printf("✅ HandleUploadImage - upload success: PublicID=%s, URL=%s, Size=%dx%d\n", 
+		result.PublicID, result.SecureURL, result.Width, result.Height)
 
 	// Return response
 	uploadResponse := UploadImageResponse{

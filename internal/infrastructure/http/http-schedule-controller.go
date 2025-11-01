@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"whisko-petcare/internal/application/command"
 	"whisko-petcare/internal/application/services"
@@ -79,34 +80,43 @@ func (c *ScheduleController) ListSchedules(w http.ResponseWriter, r *http.Reques
 
 // ListUserSchedules handles GET /users/{userID}/schedules
 func (c *ScheduleController) ListUserSchedules(w http.ResponseWriter, r *http.Request) {
-	// Extract user ID from path
-	userID := r.PathValue("userID")
-	if userID == "" {
+	// Extract user ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/users/")
+	parts := strings.Split(path, "/")
+	if len(parts) < 2 || parts[0] == "" {
 		middleware.HandleError(w, r, errors.NewValidationError("User ID is required"))
 		return
 	}
+	userID := parts[0]
 
 	// Parse query parameters
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 
+	// Debug log
+	println("📥 ListUserSchedules - Received request for userID:", userID, "offset:", offset, "limit:", limit)
+
 	schedules, err := c.service.ListUserSchedules(r.Context(), userID, offset, limit)
 	if err != nil {
+		println("❌ ListUserSchedules - Error:", err.Error())
 		middleware.HandleError(w, r, err)
 		return
 	}
 
+	println("📤 ListUserSchedules - Returning schedules, count:", len(schedules))
 	response.SendSuccess(w, r, schedules)
 }
 
 // ListShopSchedules handles GET /vendors/{shopID}/schedules
 func (c *ScheduleController) ListShopSchedules(w http.ResponseWriter, r *http.Request) {
-	// Extract shop ID from path
-	shopID := r.PathValue("shopID")
-	if shopID == "" {
+	// Extract shop ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/vendors/")
+	parts := strings.Split(path, "/")
+	if len(parts) < 2 || parts[0] == "" {
 		middleware.HandleError(w, r, errors.NewValidationError("Shop ID is required"))
 		return
 	}
+	shopID := parts[0]
 
 	// Parse query parameters
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))

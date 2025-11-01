@@ -63,8 +63,8 @@ func (h *CreateServiceWithUoWHandler) Handle(ctx context.Context, cmd *CreateSer
 	// Convert duration from minutes to time.Duration
 	duration := time.Duration(cmd.Duration) * time.Minute
 
-	// Create service aggregate
-	service, err := aggregate.NewService(cmd.VendorID, cmd.Name, cmd.Description, cmd.Price, duration)
+	// Create service aggregate (with optional imageUrl)
+	service, err := aggregate.NewService(cmd.VendorID, cmd.Name, cmd.Description, cmd.Price, duration, cmd.Tags, cmd.ImageUrl)
 	if err != nil {
 		uow.Rollback(ctx)
 		return errors.NewValidationError(fmt.Sprintf("failed to create service: %v", err))
@@ -152,7 +152,7 @@ func (h *UpdateServiceWithUoWHandler) Handle(ctx context.Context, cmd *UpdateSer
 	duration := time.Duration(cmd.Duration) * time.Minute
 
 	// Update service
-	if err := serviceAggregate.UpdateService(cmd.Name, cmd.Description, cmd.Price, duration); err != nil {
+	if err := serviceAggregate.UpdateService(cmd.Name, cmd.Description, cmd.Price, duration, cmd.Tags); err != nil {
 		uow.Rollback(ctx)
 		return errors.NewValidationError(fmt.Sprintf("failed to update service: %v", err))
 	}

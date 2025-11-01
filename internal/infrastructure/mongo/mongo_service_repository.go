@@ -63,6 +63,7 @@ func (r *MongoServiceRepository) Save(ctx context.Context, service *aggregate.Se
 		"description": service.Description(),
 		"price":       service.Price(),
 		"duration":    service.Duration().Minutes(), // Store as minutes
+		"tags":        service.Tags(),
 		"is_active":   service.IsActive(),
 		"created_at":  service.CreatedAt(),
 		"updated_at":  service.UpdatedAt(),
@@ -124,6 +125,9 @@ func (r *MongoServiceRepository) GetByID(ctx context.Context, id string) (*aggre
 	durationMinutes := getServiceFloat64(result, "duration")
 	duration := time.Duration(durationMinutes) * time.Minute
 
+	// Extract tags
+	tags := getServiceTags(result, "tags")
+
 	// Reconstruct service from document
 	service, err := aggregate.NewService(
 		getServiceString(result, "vendor_id"),
@@ -131,6 +135,7 @@ func (r *MongoServiceRepository) GetByID(ctx context.Context, id string) (*aggre
 		getServiceString(result, "description"),
 		getServiceInt(result, "price"),
 		duration,
+		tags,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reconstruct service: %w", err)
@@ -182,6 +187,23 @@ func getServiceFloat64(doc bson.M, key string) float64 {
 		return float64(val)
 	}
 	return 0
+}
+
+// getServiceTags safely extracts a string slice from a bson.M document
+func getServiceTags(doc bson.M, key string) []string {
+	if val, ok := doc[key].([]interface{}); ok {
+		tags := make([]string, 0, len(val))
+		for _, v := range val {
+			if str, ok := v.(string); ok {
+				tags = append(tags, str)
+			}
+		}
+		return tags
+	}
+	if val, ok := doc[key].([]string); ok {
+		return val
+	}
+	return []string{}
 }
 
 // SaveEvents saves events for a service aggregate

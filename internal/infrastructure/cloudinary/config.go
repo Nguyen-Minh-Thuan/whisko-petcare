@@ -25,6 +25,10 @@ func NewConfigFromEnv() (*Config, error) {
 
 	uploadFolder := os.Getenv("CLOUDINARY_UPLOAD_FOLDER")
 	if uploadFolder == "" {
+		// Fallback to CLOUDINARY_FOLDER for compatibility
+		uploadFolder = os.Getenv("CLOUDINARY_FOLDER")
+	}
+	if uploadFolder == "" {
 		uploadFolder = "whisko-petcare" // default folder
 	}
 

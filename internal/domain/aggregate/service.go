@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 	"whisko-petcare/internal/domain/event"
+
 	"github.com/google/uuid"
 )
 
@@ -14,6 +15,8 @@ type Service struct {
 	description string
 	price       int // Price in VND cents
 	duration    time.Duration
+	imageUrl    string
+	tags        []string
 	createdAt   time.Time
 	updatedAt   time.Time
 	version     int
@@ -22,7 +25,7 @@ type Service struct {
 	uncommittedEvents []event.DomainEvent
 }
 
-func NewService(vendorId, name, description string, price int, duration time.Duration) (*Service, error) {
+func NewService(vendorId, name, description string, price int, duration time.Duration, tags []string, imageUrl ...string) (*Service, error) {
 	// Validate input
 	if vendorId == "" {
 		return nil, fmt.Errorf("vendorId cannot be empty")
@@ -39,6 +42,9 @@ func NewService(vendorId, name, description string, price int, duration time.Dur
 	if duration <= 0 {
 		return nil, fmt.Errorf("duration must be greater than 0")
 	}
+	if tags == nil {
+		tags = []string{}
+	}
 	service := &Service{
 		id:          uuid.New().String(),
 		vendorId:    vendorId,
@@ -46,11 +52,18 @@ func NewService(vendorId, name, description string, price int, duration time.Dur
 		description: description,
 		price:       price,
 		duration:    duration,
+		tags:        tags,
 		createdAt:   time.Now(),
 		updatedAt:   time.Now(),	
 		version:     1,
 		isActive:    true,
 	}
+	
+	// Set imageUrl if provided
+	if len(imageUrl) > 0 && imageUrl[0] != "" {
+		service.imageUrl = imageUrl[0]
+	}
+	
 	service.raiseEvent(&event.ServiceCreated{
 		ServiceID:   service.id,
 		VendorID:    service.vendorId,
@@ -58,6 +71,8 @@ func NewService(vendorId, name, description string, price int, duration time.Dur
 		Description: description,
 		Price:       price,
 		Duration:    duration,
+		Tags:        tags,
+		ImageUrl:    service.imageUrl,
 		Timestamp:   service.createdAt,
 	})
 	return service, nil
@@ -77,7 +92,7 @@ func NewServiceFromHistory(events []event.DomainEvent) (*Service, error) {
 	return service, nil
 }
 
-func (s *Service) UpdateService(name, description string, price int, duration time.Duration) error {
+func (s *Service) UpdateService(name, description string, price int, duration time.Duration, tags []string) error {
 	if name == "" {
 		return fmt.Errorf("name cannot be empty")
 	}
@@ -87,6 +102,9 @@ func (s *Service) UpdateService(name, description string, price int, duration ti
 	if duration <= 0 {
 		return fmt.Errorf("duration must be greater than 0")
 	}
+	if tags == nil {
+		tags = []string{}
+	}
 
 	s.raiseEvent(&event.ServiceUpdated{
 		ServiceID:    s.id,
@@ -94,10 +112,24 @@ func (s *Service) UpdateService(name, description string, price int, duration ti
 		Description:  description,
 		Price:        price,
 		Duration:     duration,
+		Tags:         tags,
 		EventVersion: s.version + 1,
 		Timestamp:    time.Now(),
 	})
 	
+	return nil
+}
+
+func (s *Service) UpdateImageUrl(imageUrl string) error {
+	if imageUrl == "" {
+		return fmt.Errorf("imageUrl cannot be empty")
+	}
+	s.raiseEvent(&event.ServiceImageUpdated{
+		ServiceID:    s.id,
+		ImageUrl:     imageUrl,
+		EventVersion: s.version + 1,
+		Timestamp:    time.Now(),
+	})
 	return nil
 }
 
@@ -133,6 +165,7 @@ func (s *Service) applyEvent(ev event.DomainEvent) error {
 		s.description = e.Description
 		s.price = e.Price
 		s.duration = e.Duration
+		s.tags = e.Tags
 		s.createdAt = e.Timestamp
 		s.updatedAt = e.Timestamp
 		s.version = 1
@@ -143,6 +176,7 @@ func (s *Service) applyEvent(ev event.DomainEvent) error {
 		s.description = e.Description
 		s.price = e.Price
 		s.duration = e.Duration
+		s.tags = e.Tags
 		s.version = e.EventVersion
 		s.updatedAt = e.Timestamp
 		
@@ -150,6 +184,11 @@ func (s *Service) applyEvent(ev event.DomainEvent) error {
 		s.version = e.EventVersion
 		s.updatedAt = e.Timestamp
 		s.isActive = false
+		
+	case *event.ServiceImageUpdated:
+		s.imageUrl = e.ImageUrl
+		s.version = e.EventVersion
+		s.updatedAt = e.Timestamp
 		
 	default:
 		return fmt.Errorf("unknown event type: %T", ev)
@@ -165,6 +204,8 @@ func (s *Service) Name() string           { return s.name }
 func (s *Service) Description() string    { return s.description }
 func (s *Service) Price() int             { return s.price }
 func (s *Service) Duration() time.Duration { return s.duration }
+func (s *Service) ImageUrl() string       { return s.imageUrl }
+func (s *Service) Tags() []string         { return s.tags }
 func (s *Service) CreatedAt() time.Time   { return s.createdAt }
 func (s *Service) UpdatedAt() time.Time   { return s.updatedAt }
 func (s *Service) Version() int           { return s.version }

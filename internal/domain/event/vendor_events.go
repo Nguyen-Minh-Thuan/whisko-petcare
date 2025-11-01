@@ -9,6 +9,7 @@ type VendorCreated struct {
 	Email     string    `json:"email"`
 	Phone     string    `json:"phone"`
 	Address   string    `json:"address"`
+	ImageUrl  string    `json:"image_url"`
 	Timestamp time.Time `json:"timestamp"`
 }
 
@@ -44,3 +45,16 @@ func (e *VendorDeleted) EventType() string     { return "VendorDeleted" }
 func (e *VendorDeleted) AggregateID() string   { return e.VendorID }
 func (e *VendorDeleted) OccurredAt() time.Time { return e.Timestamp }
 func (e *VendorDeleted) Version() int          { return e.EventVersion }
+
+// VendorImageUpdated event
+type VendorImageUpdated struct {
+	VendorID     string    `json:"vendor_id"`
+	ImageUrl     string    `json:"image_url"`
+	EventVersion int       `json:"version"`
+	Timestamp    time.Time `json:"timestamp"`
+}
+
+func (e *VendorImageUpdated) EventType() string     { return "VendorImageUpdated" }
+func (e *VendorImageUpdated) AggregateID() string   { return e.VendorID }
+func (e *VendorImageUpdated) OccurredAt() time.Time { return e.Timestamp }
+func (e *VendorImageUpdated) Version() int          { return e.EventVersion }

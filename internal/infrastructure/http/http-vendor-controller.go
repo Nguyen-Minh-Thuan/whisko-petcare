@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"whisko-petcare/internal/application/command"
 	"whisko-petcare/internal/application/services"
+	"whisko-petcare/internal/infrastructure/cloudinary"
 	"whisko-petcare/pkg/errors"
 	"whisko-petcare/pkg/middleware"
 	"whisko-petcare/pkg/response"
@@ -16,13 +18,15 @@ import (
 
 // VendorController handles HTTP requests for vendor operations
 type VendorController struct {
-	service *services.VendorService
+	service    *services.VendorService
+	cloudinary *cloudinary.Service
 }
 
 // NewVendorController creates a new vendor controller
-func NewVendorController(service *services.VendorService) *VendorController {
+func NewVendorController(service *services.VendorService, cloudinary *cloudinary.Service) *VendorController {
 	return &VendorController{
-		service: service,
+		service:    service,
+		cloudinary: cloudinary,
 	}
 }
 
@@ -31,26 +35,71 @@ func generateVendorID() string {
 	return fmt.Sprintf("vendor_%d", time.Now().UnixNano())
 }
 
-// CreateVendor handles POST /vendors
+// CreateVendor handles POST /vendors - supports both JSON and multipart/form-data with image
 func (c *VendorController) CreateVendor(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Name    string `json:"name"`
-		Email   string `json:"email,omitempty"`
-		Phone   string `json:"phone,omitempty"`
-		Address string `json:"address,omitempty"`
-	}
+	var name, email, phone, address, imageUrl string
+	vendorID := generateVendorID()
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
-		return
+	// Check if multipart form (with image file)
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			middleware.HandleError(w, r, errors.NewValidationError("Failed to parse form"))
+			return
+		}
+
+		// Get form fields
+		name = r.FormValue("name")
+		email = r.FormValue("email")
+		phone = r.FormValue("phone")
+		address = r.FormValue("address")
+
+		// Check if image file is provided
+		file, fileHeader, err := r.FormFile("image")
+		if err == nil {
+			defer file.Close()
+			
+			// Upload to Cloudinary
+			if c.cloudinary == nil {
+				middleware.HandleError(w, r, errors.NewInternalError("Cloudinary not configured"))
+				return
+			}
+			
+			uploadRes, err := c.cloudinary.UploadVendorImage(r.Context(), file, fileHeader.Filename, vendorID)
+			if err != nil {
+				middleware.HandleError(w, r, errors.NewInternalError(fmt.Sprintf("Failed to upload image: %v", err)))
+				return
+			}
+			imageUrl = uploadRes.SecureURL
+		}
+	} else {
+		// JSON body
+		var req struct {
+			Name     string `json:"name"`
+			Email    string `json:"email,omitempty"`
+			Phone    string `json:"phone,omitempty"`
+			Address  string `json:"address,omitempty"`
+			ImageUrl string `json:"image_url,omitempty"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
+			return
+		}
+
+		name = req.Name
+		email = req.Email
+		phone = req.Phone
+		address = req.Address
+		imageUrl = req.ImageUrl
 	}
 
 	cmd := command.CreateVendor{
-		VendorID: generateVendorID(),
-		Name:     req.Name,
-		Email:    req.Email,
-		Phone:    req.Phone,
-		Address:  req.Address,
+		VendorID: vendorID,
+		Name:     name,
+		Email:    email,
+		Phone:    phone,
+		Address:  address,
+		ImageUrl: imageUrl,
 	}
 
 	if err := c.service.CreateVendor(r.Context(), &cmd); err != nil {
@@ -61,6 +110,9 @@ func (c *VendorController) CreateVendor(w http.ResponseWriter, r *http.Request) 
 	responseData := map[string]interface{}{
 		"id":      cmd.VendorID,
 		"message": "Vendor created successfully",
+	}
+	if imageUrl != "" {
+		responseData["image_url"] = imageUrl
 	}
 	response.SendCreated(w, r, responseData)
 }
