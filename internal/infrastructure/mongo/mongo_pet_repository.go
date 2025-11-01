@@ -3,14 +3,15 @@ package mongo
 import (
 	"context"
 	"fmt"
+	"time"
 	"whisko-petcare/internal/domain/aggregate"
 	"whisko-petcare/internal/domain/event"
+
 	// "whisko-petcare/internal/domain/repository"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-
 	// "whisko-petcare/internal/infrastructure/mongo/collections"
 	// "whisko-petcare/pkg/errors"
 )
@@ -53,17 +54,21 @@ func (r *MongoPetRepository) Save(ctx context.Context, pet *aggregate.Pet) error
 
 	// Prepare entity document for MongoDB
 	entityDoc := bson.M{
-		"_id":        pet.GetID(),
-		"version":    pet.GetVersion(),
-		"user_id":    pet.UserID(),
-		"name":       pet.Name(),
-		"species":    pet.Species(),
-		"breed":      pet.Breed(),
-		"age":        pet.Age(),
-		"weight":     pet.Weight(),
-		"is_active":  pet.IsActive(),
-		"created_at": pet.CreatedAt(),
-		"updated_at": pet.UpdatedAt(),
+		"_id":                  pet.GetID(),
+		"version":              pet.GetVersion(),
+		"user_id":              pet.UserID(),
+		"name":                 pet.Name(),
+		"species":              pet.Species(),
+		"breed":                pet.Breed(),
+		"age":                  pet.Age(),
+		"weight":               pet.Weight(),
+		"image_url":            pet.ImageUrl(),
+		"is_active":            pet.IsActive(),
+		"created_at":           pet.CreatedAt(),
+		"updated_at":           pet.UpdatedAt(),
+		"vaccination_records":  pet.VaccinationRecords(),
+		"medical_history":      pet.MedicalHistory(),
+		"allergies":            pet.Allergies(),
 	}
 	
 	// Upsert the entity document in the database
@@ -117,21 +122,26 @@ func (r *MongoPetRepository) GetByID(ctx context.Context, id string) (*aggregate
 		return nil, fmt.Errorf("failed to retrieve pet: %w", err)
 	}
 
-	// Reconstruct the Pet aggregate using all required parameters
-	pet, err := aggregate.NewPet(
+	// Reconstruct the Pet aggregate WITHOUT raising events
+	pet := aggregate.ReconstructPet(
+		getPetString(petDoc, "_id"),
 		getPetString(petDoc, "user_id"),
 		getPetString(petDoc, "name"),
 		getPetString(petDoc, "species"),
 		getPetString(petDoc, "breed"),
 		getPetInt(petDoc, "age"),
 		getPetFloat64(petDoc, "weight"),
+		getPetString(petDoc, "image_url"),
+		getPetInt(petDoc, "version"),
+		getPetTime(petDoc, "created_at"),
+		getPetTime(petDoc, "updated_at"),
+		getPetBool(petDoc, "is_active"),
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create pet aggregate: %w", err)
-	}
 
-	// Set version from database
-	pet.SetVersion(getPetInt(petDoc, "version"))
+	// Reconstruct health data from database
+	pet.SetVaccinationRecords(getPetVaccinationRecords(petDoc))
+	pet.SetMedicalHistory(getPetMedicalHistory(petDoc))
+	pet.SetAllergies(getPetAllergies(petDoc))
 
 	return pet, nil
 }
@@ -216,5 +226,80 @@ func getPetFloat64(doc bson.M, key string) float64 {
 		return float64(val)
 	}
 	return 0.0
+}
+
+func getPetBool(doc bson.M, key string) bool {
+	if val, ok := doc[key].(bool); ok {
+		return val
+	}
+	return false
+}
+
+func getPetVaccinationRecords(doc bson.M) []event.VaccinationRecord {
+	records := []event.VaccinationRecord{}
+	if val, ok := doc["vaccination_records"].(bson.A); ok {
+		for _, item := range val {
+			if recordMap, ok := item.(bson.M); ok {
+				record := event.VaccinationRecord{
+					ID:            getPetString(recordMap, "id"),
+					VaccineName:   getPetString(recordMap, "vaccine_name"),
+					Date:          getPetTime(recordMap, "date"),
+					NextDueDate:   getPetTime(recordMap, "next_due_date"),
+					Veterinarian:  getPetString(recordMap, "veterinarian"),
+					Notes:         getPetString(recordMap, "notes"),
+				}
+				records = append(records, record)
+			}
+		}
+	}
+	return records
+}
+
+func getPetMedicalHistory(doc bson.M) []event.MedicalRecord {
+	records := []event.MedicalRecord{}
+	if val, ok := doc["medical_history"].(bson.A); ok {
+		for _, item := range val {
+			if recordMap, ok := item.(bson.M); ok {
+				record := event.MedicalRecord{
+					ID:            getPetString(recordMap, "id"),
+					Date:          getPetTime(recordMap, "date"),
+					Description:   getPetString(recordMap, "description"),
+					Treatment:     getPetString(recordMap, "treatment"),
+					Veterinarian:  getPetString(recordMap, "veterinarian"),
+					Diagnosis:     getPetString(recordMap, "diagnosis"),
+					Notes:         getPetString(recordMap, "notes"),
+				}
+				records = append(records, record)
+			}
+		}
+	}
+	return records
+}
+
+func getPetAllergies(doc bson.M) []event.Allergy {
+	allergies := []event.Allergy{}
+	if val, ok := doc["allergies"].(bson.A); ok {
+		for _, item := range val {
+			if allergyMap, ok := item.(bson.M); ok {
+				allergy := event.Allergy{
+					ID:            getPetString(allergyMap, "id"),
+					Allergen:      getPetString(allergyMap, "allergen"),
+					Severity:      getPetString(allergyMap, "severity"),
+					Symptoms:      getPetString(allergyMap, "symptoms"),
+					DiagnosedDate: getPetTime(allergyMap, "diagnosed_date"),
+					Notes:         getPetString(allergyMap, "notes"),
+				}
+				allergies = append(allergies, allergy)
+			}
+		}
+	}
+	return allergies
+}
+
+func getPetTime(doc bson.M, key string) time.Time {
+	if val, ok := doc[key].(time.Time); ok {
+		return val
+	}
+	return time.Time{}
 }
 

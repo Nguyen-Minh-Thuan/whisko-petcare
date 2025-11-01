@@ -296,3 +296,209 @@ func (c *HTTPPetController) DeletePet(w http.ResponseWriter, r *http.Request) {
 	}
 	response.SendSuccess(w, r, responseData)
 }
+
+// AddPetVaccination handles POST /pets/{id}/vaccinations
+func (c *HTTPPetController) AddPetVaccination(w http.ResponseWriter, r *http.Request) {
+	// Extract pet ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/pets/")
+	parts := strings.Split(path, "/")
+	petID := parts[0]
+	
+	if petID == "" {
+		middleware.HandleError(w, r, errors.NewValidationError("Pet ID is required"))
+		return
+	}
+
+	var req struct {
+		VaccineName  string `json:"vaccine_name"`
+		Date         string `json:"date"`
+		NextDueDate  string `json:"next_due_date,omitempty"`
+		Veterinarian string `json:"veterinarian,omitempty"`
+		Notes        string `json:"notes,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
+		return
+	}
+
+	// Parse dates
+	date, err := time.Parse(time.RFC3339, req.Date)
+	if err != nil {
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid date format, use RFC3339"))
+		return
+	}
+
+	var nextDueDate time.Time
+	if req.NextDueDate != "" {
+		nextDueDate, err = time.Parse(time.RFC3339, req.NextDueDate)
+		if err != nil {
+			middleware.HandleError(w, r, errors.NewValidationError("Invalid next_due_date format, use RFC3339"))
+			return
+		}
+	}
+
+	cmd := command.AddPetVaccination{
+		PetID:        petID,
+		VaccineName:  req.VaccineName,
+		Date:         date,
+		NextDueDate:  nextDueDate,
+		Veterinarian: req.Veterinarian,
+		Notes:        req.Notes,
+	}
+
+	if err := c.petService.AddPetVaccination(r.Context(), cmd); err != nil {
+		middleware.HandleError(w, r, err)
+		return
+	}
+
+	responseData := map[string]interface{}{
+		"message": "Vaccination record added successfully",
+	}
+	response.SendSuccess(w, r, responseData)
+}
+
+// AddPetMedicalRecord handles POST /pets/{id}/medical-records
+func (c *HTTPPetController) AddPetMedicalRecord(w http.ResponseWriter, r *http.Request) {
+	// Extract pet ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/pets/")
+	parts := strings.Split(path, "/")
+	petID := parts[0]
+	
+	if petID == "" {
+		middleware.HandleError(w, r, errors.NewValidationError("Pet ID is required"))
+		return
+	}
+
+	var req struct {
+		Date         string `json:"date"`
+		Description  string `json:"description"`
+		Treatment    string `json:"treatment,omitempty"`
+		Veterinarian string `json:"veterinarian,omitempty"`
+		Diagnosis    string `json:"diagnosis,omitempty"`
+		Notes        string `json:"notes,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
+		return
+	}
+
+	// Parse date
+	date, err := time.Parse(time.RFC3339, req.Date)
+	if err != nil {
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid date format, use RFC3339"))
+		return
+	}
+
+	cmd := command.AddPetMedicalRecord{
+		PetID:        petID,
+		Date:         date,
+		Description:  req.Description,
+		Treatment:    req.Treatment,
+		Veterinarian: req.Veterinarian,
+		Diagnosis:    req.Diagnosis,
+		Notes:        req.Notes,
+	}
+
+	if err := c.petService.AddPetMedicalRecord(r.Context(), cmd); err != nil {
+		middleware.HandleError(w, r, err)
+		return
+	}
+
+	responseData := map[string]interface{}{
+		"message": "Medical record added successfully",
+	}
+	response.SendSuccess(w, r, responseData)
+}
+
+// AddPetAllergy handles POST /pets/{id}/allergies
+func (c *HTTPPetController) AddPetAllergy(w http.ResponseWriter, r *http.Request) {
+	// Extract pet ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/pets/")
+	parts := strings.Split(path, "/")
+	petID := parts[0]
+	
+	if petID == "" {
+		middleware.HandleError(w, r, errors.NewValidationError("Pet ID is required"))
+		return
+	}
+
+	var req struct {
+		Allergen      string `json:"allergen"`
+		Severity      string `json:"severity"`
+		Symptoms      string `json:"symptoms,omitempty"`
+		DiagnosedDate string `json:"diagnosed_date,omitempty"`
+		Notes         string `json:"notes,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
+		return
+	}
+
+	// Parse diagnosed date if provided
+	var diagnosedDate time.Time
+	if req.DiagnosedDate != "" {
+		var err error
+		diagnosedDate, err = time.Parse(time.RFC3339, req.DiagnosedDate)
+		if err != nil {
+			middleware.HandleError(w, r, errors.NewValidationError("Invalid diagnosed_date format, use RFC3339"))
+			return
+		}
+	}
+
+	cmd := command.AddPetAllergy{
+		PetID:         petID,
+		Allergen:      req.Allergen,
+		Severity:      req.Severity,
+		Symptoms:      req.Symptoms,
+		DiagnosedDate: diagnosedDate,
+		Notes:         req.Notes,
+	}
+
+	if err := c.petService.AddPetAllergy(r.Context(), cmd); err != nil {
+		middleware.HandleError(w, r, err)
+		return
+	}
+
+	responseData := map[string]interface{}{
+		"message": "Allergy added successfully",
+	}
+	response.SendSuccess(w, r, responseData)
+}
+
+// RemovePetAllergy handles DELETE /pets/{id}/allergies/{allergy_id}
+func (c *HTTPPetController) RemovePetAllergy(w http.ResponseWriter, r *http.Request) {
+	// Extract pet ID and allergy ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/pets/")
+	parts := strings.Split(path, "/")
+	
+	if len(parts) < 3 {
+		middleware.HandleError(w, r, errors.NewValidationError("Pet ID and Allergy ID are required"))
+		return
+	}
+	
+	petID := parts[0]
+	allergyID := parts[2]
+	
+	if petID == "" || allergyID == "" {
+		middleware.HandleError(w, r, errors.NewValidationError("Pet ID and Allergy ID are required"))
+		return
+	}
+
+	cmd := command.RemovePetAllergy{
+		PetID:     petID,
+		AllergyID: allergyID,
+	}
+
+	if err := c.petService.RemovePetAllergy(r.Context(), cmd); err != nil {
+		middleware.HandleError(w, r, err)
+		return
+	}
+
+	responseData := map[string]interface{}{
+		"message": "Allergy removed successfully",
+	}
+	response.SendSuccess(w, r, responseData)
+}

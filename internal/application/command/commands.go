@@ -1,6 +1,9 @@
 package command
 
-import "whisko-petcare/internal/domain/aggregate"
+import (
+	"time"
+	"whisko-petcare/internal/domain/aggregate"
+)
 
 // ============================================
 // User Commands
@@ -124,6 +127,46 @@ type UpdatePet struct {
 // DeletePet represents a command to delete a pet
 type DeletePet struct {
 	PetID string `json:"pet_id"`
+}
+
+// Pet Health Commands
+// ============================================
+
+// AddPetVaccination represents a command to add a vaccination record
+type AddPetVaccination struct {
+	PetID        string    `json:"pet_id"`
+	VaccineName  string    `json:"vaccine_name"`
+	Date         time.Time `json:"date"`
+	NextDueDate  time.Time `json:"next_due_date,omitempty"`
+	Veterinarian string    `json:"veterinarian,omitempty"`
+	Notes        string    `json:"notes,omitempty"`
+}
+
+// AddPetMedicalRecord represents a command to add a medical record
+type AddPetMedicalRecord struct {
+	PetID        string    `json:"pet_id"`
+	Date         time.Time `json:"date"`
+	Description  string    `json:"description"`
+	Treatment    string    `json:"treatment,omitempty"`
+	Veterinarian string    `json:"veterinarian,omitempty"`
+	Diagnosis    string    `json:"diagnosis,omitempty"`
+	Notes        string    `json:"notes,omitempty"`
+}
+
+// AddPetAllergy represents a command to add an allergy
+type AddPetAllergy struct {
+	PetID         string    `json:"pet_id"`
+	Allergen      string    `json:"allergen"`
+	Severity      string    `json:"severity"`
+	Symptoms      string    `json:"symptoms,omitempty"`
+	DiagnosedDate time.Time `json:"diagnosed_date,omitempty"`
+	Notes         string    `json:"notes,omitempty"`
+}
+
+// RemovePetAllergy represents a command to remove an allergy
+type RemovePetAllergy struct {
+	PetID     string `json:"pet_id"`
+	AllergyID string `json:"allergy_id"`
 }
 
 // ============================================
