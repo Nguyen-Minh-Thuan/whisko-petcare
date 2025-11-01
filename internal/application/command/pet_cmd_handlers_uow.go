@@ -66,6 +66,9 @@ func (h *CreatePetWithUoWHandler) Handle(ctx context.Context, cmd *CreatePet) er
 		return errors.NewValidationError(fmt.Sprintf("failed to create pet: %v", err))
 	}
 
+	// Get events BEFORE saving (Save() will clear them)
+	events := pet.GetUncommittedEvents()
+
 	// Save pet using repository from unit of work
 	petRepo := uow.PetRepository()
 	if err := petRepo.Save(ctx, pet); err != nil {
@@ -73,16 +76,14 @@ func (h *CreatePetWithUoWHandler) Handle(ctx context.Context, cmd *CreatePet) er
 		return errors.NewInternalError(fmt.Sprintf("failed to save pet: %v", err))
 	}
 
-	// Publish events asynchronously
-	events := pet.GetUncommittedEvents()
-	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
-		// Log warning but don't fail the command (eventual consistency)
-		fmt.Printf("Warning: failed to publish pet events: %v\n", err)
-	}
-
-	// Commit transaction
+	// Commit transaction FIRST
 	if err := uow.Commit(ctx); err != nil {
 		return errors.NewInternalError(fmt.Sprintf("failed to commit transaction: %v", err))
+	}
+
+	// Publish events AFTER successful commit (eventual consistency)
+	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
+		fmt.Printf("Warning: failed to publish pet creation events: %v\n", err)
 	}
 
 	return nil
@@ -148,21 +149,23 @@ func (h *UpdatePetWithUoWHandler) Handle(ctx context.Context, cmd *UpdatePet) er
 		return errors.NewValidationError(fmt.Sprintf("failed to update pet: %v", err))
 	}
 
+	// Get events BEFORE saving (Save() will clear them)
+	events := petAggregate.GetUncommittedEvents()
+
 	// Save updated pet
 	if err := petRepo.Save(ctx, petAggregate); err != nil {
 		uow.Rollback(ctx)
 		return errors.NewInternalError(fmt.Sprintf("failed to save pet: %v", err))
 	}
 
-	// Publish events asynchronously
-	events := petAggregate.GetUncommittedEvents()
-	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
-		fmt.Printf("Warning: failed to publish pet events: %v\n", err)
-	}
-
-	// Commit transaction
+	// Commit transaction FIRST
 	if err := uow.Commit(ctx); err != nil {
 		return errors.NewInternalError(fmt.Sprintf("failed to commit transaction: %v", err))
+	}
+
+	// Publish events AFTER successful commit (eventual consistency)
+	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
+		fmt.Printf("Warning: failed to publish pet update events: %v\n", err)
 	}
 
 	return nil
@@ -219,21 +222,23 @@ func (h *DeletePetWithUoWHandler) Handle(ctx context.Context, cmd *DeletePet) er
 		return errors.NewValidationError(fmt.Sprintf("failed to delete pet: %v", err))
 	}
 
+	// Get events BEFORE saving (Save() will clear them)
+	events := petAggregate.GetUncommittedEvents()
+
 	// Save updated pet
 	if err := petRepo.Save(ctx, petAggregate); err != nil {
 		uow.Rollback(ctx)
 		return errors.NewInternalError(fmt.Sprintf("failed to save pet: %v", err))
 	}
 
-	// Publish events asynchronously
-	events := petAggregate.GetUncommittedEvents()
-	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
-		fmt.Printf("Warning: failed to publish pet events: %v\n", err)
-	}
-
-	// Commit transaction
+	// Commit transaction FIRST
 	if err := uow.Commit(ctx); err != nil {
 		return errors.NewInternalError(fmt.Sprintf("failed to commit transaction: %v", err))
+	}
+
+	// Publish events AFTER successful commit (eventual consistency)
+	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
+		fmt.Printf("Warning: failed to publish pet deletion events: %v\n", err)
 	}
 
 	return nil
@@ -302,21 +307,23 @@ func (h *AddPetVaccinationWithUoWHandler) Handle(ctx context.Context, cmd *AddPe
 		return errors.NewValidationError(fmt.Sprintf("failed to add vaccination: %v", err))
 	}
 
+	// Get events BEFORE saving (Save() will clear them)
+	events := petAggregate.GetUncommittedEvents()
+
 	// Save updated pet
 	if err := petRepo.Save(ctx, petAggregate); err != nil {
 		uow.Rollback(ctx)
 		return errors.NewInternalError(fmt.Sprintf("failed to save pet: %v", err))
 	}
 
-	// Publish events asynchronously
-	events := petAggregate.GetUncommittedEvents()
-	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
-		fmt.Printf("Warning: failed to publish pet events: %v\n", err)
-	}
-
-	// Commit transaction
+	// Commit transaction FIRST
 	if err := uow.Commit(ctx); err != nil {
 		return errors.NewInternalError(fmt.Sprintf("failed to commit transaction: %v", err))
+	}
+
+	// Publish events AFTER successful commit (eventual consistency)
+	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
+		fmt.Printf("Warning: failed to publish pet vaccination events: %v\n", err)
 	}
 
 	return nil
@@ -386,21 +393,23 @@ func (h *AddPetMedicalRecordWithUoWHandler) Handle(ctx context.Context, cmd *Add
 		return errors.NewValidationError(fmt.Sprintf("failed to add medical record: %v", err))
 	}
 
+	// Get events BEFORE saving (Save() will clear them)
+	events := petAggregate.GetUncommittedEvents()
+
 	// Save updated pet
 	if err := petRepo.Save(ctx, petAggregate); err != nil {
 		uow.Rollback(ctx)
 		return errors.NewInternalError(fmt.Sprintf("failed to save pet: %v", err))
 	}
 
-	// Publish events asynchronously
-	events := petAggregate.GetUncommittedEvents()
-	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
-		fmt.Printf("Warning: failed to publish pet events: %v\n", err)
-	}
-
-	// Commit transaction
+	// Commit transaction FIRST
 	if err := uow.Commit(ctx); err != nil {
 		return errors.NewInternalError(fmt.Sprintf("failed to commit transaction: %v", err))
+	}
+
+	// Publish events AFTER successful commit (eventual consistency)
+	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
+		fmt.Printf("Warning: failed to publish pet medical record events: %v\n", err)
 	}
 
 	return nil
@@ -473,21 +482,23 @@ func (h *AddPetAllergyWithUoWHandler) Handle(ctx context.Context, cmd *AddPetAll
 		return errors.NewValidationError(fmt.Sprintf("failed to add allergy: %v", err))
 	}
 
+	// Get events BEFORE saving (Save() will clear them)
+	events := petAggregate.GetUncommittedEvents()
+
 	// Save updated pet
 	if err := petRepo.Save(ctx, petAggregate); err != nil {
 		uow.Rollback(ctx)
 		return errors.NewInternalError(fmt.Sprintf("failed to save pet: %v", err))
 	}
 
-	// Publish events asynchronously
-	events := petAggregate.GetUncommittedEvents()
-	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
-		fmt.Printf("Warning: failed to publish pet events: %v\n", err)
-	}
-
-	// Commit transaction
+	// Commit transaction FIRST
 	if err := uow.Commit(ctx); err != nil {
 		return errors.NewInternalError(fmt.Sprintf("failed to commit transaction: %v", err))
+	}
+
+	// Publish events AFTER successful commit (eventual consistency)
+	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
+		fmt.Printf("Warning: failed to publish pet allergy events: %v\n", err)
 	}
 
 	return nil
@@ -547,21 +558,23 @@ func (h *RemovePetAllergyWithUoWHandler) Handle(ctx context.Context, cmd *Remove
 		return errors.NewValidationError(fmt.Sprintf("failed to remove allergy: %v", err))
 	}
 
+	// Get events BEFORE saving (Save() will clear them)
+	events := petAggregate.GetUncommittedEvents()
+
 	// Save updated pet
 	if err := petRepo.Save(ctx, petAggregate); err != nil {
 		uow.Rollback(ctx)
 		return errors.NewInternalError(fmt.Sprintf("failed to save pet: %v", err))
 	}
 
-	// Publish events asynchronously
-	events := petAggregate.GetUncommittedEvents()
-	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
-		fmt.Printf("Warning: failed to publish pet events: %v\n", err)
-	}
-
-	// Commit transaction
+	// Commit transaction FIRST
 	if err := uow.Commit(ctx); err != nil {
 		return errors.NewInternalError(fmt.Sprintf("failed to commit transaction: %v", err))
+	}
+
+	// Publish events AFTER successful commit (eventual consistency)
+	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
+		fmt.Printf("Warning: failed to publish pet allergy removal events: %v\n", err)
 	}
 
 	return nil

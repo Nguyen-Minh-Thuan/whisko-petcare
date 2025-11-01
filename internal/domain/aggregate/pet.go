@@ -94,6 +94,27 @@ func NewPetFromHistory(events []event.DomainEvent) (*Pet, error) {
 	return pet, nil
 }
 
+// ReconstructPet reconstructs a pet from database state WITHOUT raising events
+// This should ONLY be used by the repository when loading existing pets
+func ReconstructPet(id, userID, name, species, breed string, age int, weight float64, imageUrl string, 
+	version int, createdAt, updatedAt time.Time, isActive bool) *Pet {
+	return &Pet{
+		id:               id,
+		userID:           userID,
+		name:             name,
+		species:          species,
+		breed:            breed,
+		age:              age,
+		weight:           weight,
+		imageUrl:         imageUrl,
+		version:          version,
+		createdAt:        createdAt,
+		updatedAt:        updatedAt,
+		isActive:         isActive,
+		uncommittedEvents: nil, // No events when reconstructing
+	}
+}
+
 func (p *Pet) UpdateProfile(name, species, breed string, age int, weight float64) error {
 	if name == "" {
 		return fmt.Errorf("name cannot be empty")

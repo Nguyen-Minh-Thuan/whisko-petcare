@@ -189,6 +189,26 @@ func main() {
 			return petProjection.HandlePetDeleted(ctx, e.(*event.PetDeleted))
 		}))
 
+	eventBus.Subscribe("PetVaccinationAdded", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return petProjection.HandlePetVaccinationAdded(ctx, e.(*event.PetVaccinationAdded))
+		}))
+
+	eventBus.Subscribe("PetMedicalRecordAdded", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return petProjection.HandlePetMedicalRecordAdded(ctx, e.(*event.PetMedicalRecordAdded))
+		}))
+
+	eventBus.Subscribe("PetAllergyAdded", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return petProjection.HandlePetAllergyAdded(ctx, e.(*event.PetAllergyAdded))
+		}))
+
+	eventBus.Subscribe("PetAllergyRemoved", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return petProjection.HandlePetAllergyRemoved(ctx, e.(*event.PetAllergyRemoved))
+		}))
+
 	// Subscribe vendor projection to events
 	eventBus.Subscribe("VendorCreated", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {

@@ -122,23 +122,21 @@ func (r *MongoPetRepository) GetByID(ctx context.Context, id string) (*aggregate
 		return nil, fmt.Errorf("failed to retrieve pet: %w", err)
 	}
 
-	// Reconstruct the Pet aggregate using all required parameters
-	imageUrl := getPetString(petDoc, "image_url")
-	pet, err := aggregate.NewPet(
+	// Reconstruct the Pet aggregate WITHOUT raising events
+	pet := aggregate.ReconstructPet(
+		getPetString(petDoc, "_id"),
 		getPetString(petDoc, "user_id"),
 		getPetString(petDoc, "name"),
 		getPetString(petDoc, "species"),
 		getPetString(petDoc, "breed"),
 		getPetInt(petDoc, "age"),
 		getPetFloat64(petDoc, "weight"),
-		imageUrl,
+		getPetString(petDoc, "image_url"),
+		getPetInt(petDoc, "version"),
+		getPetTime(petDoc, "created_at"),
+		getPetTime(petDoc, "updated_at"),
+		getPetBool(petDoc, "is_active"),
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create pet aggregate: %w", err)
-	}
-
-	// Set version from database
-	pet.SetVersion(getPetInt(petDoc, "version"))
 
 	// Reconstruct health data from database
 	pet.SetVaccinationRecords(getPetVaccinationRecords(petDoc))
@@ -228,6 +226,13 @@ func getPetFloat64(doc bson.M, key string) float64 {
 		return float64(val)
 	}
 	return 0.0
+}
+
+func getPetBool(doc bson.M, key string) bool {
+	if val, ok := doc[key].(bool); ok {
+		return val
+	}
+	return false
 }
 
 func getPetVaccinationRecords(doc bson.M) []event.VaccinationRecord {
