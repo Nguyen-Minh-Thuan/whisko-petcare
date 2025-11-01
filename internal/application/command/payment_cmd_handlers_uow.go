@@ -160,9 +160,15 @@ func (h *CreatePaymentWithUoWHandler) Handle(ctx context.Context, cmd *CreatePay
 
 	// Publish events asynchronously
 	events := payment.GetUncommittedEvents()
+	fmt.Printf("DEBUG: Publishing %d payment events\n", len(events))
+	for i, evt := range events {
+		fmt.Printf("DEBUG: Event %d - Type: %T\n", i, evt)
+	}
 	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
 		// Log warning but don't fail the command (eventual consistency)
-		fmt.Printf("Warning: failed to publish payment events: %v\n", err)
+		fmt.Printf("ERROR: failed to publish payment events: %v\n", err)
+	} else {
+		fmt.Printf("DEBUG: Successfully published %d events\n", len(events))
 	}
 
 	// Commit transaction

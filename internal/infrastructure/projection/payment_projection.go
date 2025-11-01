@@ -130,6 +130,8 @@ func (p *MongoPaymentProjection) ListByStatus(ctx context.Context, status string
 
 // Event handlers
 func (p *MongoPaymentProjection) HandlePaymentCreated(ctx context.Context, evt *event.PaymentCreated) error {
+	fmt.Printf("DEBUG: HandlePaymentCreated called for payment %s\n", evt.PaymentID)
+	
 	items := make([]PaymentItemReadModel, len(evt.Items))
 	for i, item := range evt.Items {
 		items[i] = PaymentItemReadModel{
@@ -154,11 +156,14 @@ func (p *MongoPaymentProjection) HandlePaymentCreated(ctx context.Context, evt *
 		UpdatedAt:   evt.Timestamp,
 	}
 
+	fmt.Printf("DEBUG: Inserting payment into payments_read collection\n")
 	_, err := p.collection.InsertOne(ctx, payment)
 	if err != nil {
+		fmt.Printf("ERROR: Failed to insert payment to read model: %v\n", err)
 		return fmt.Errorf("failed to insert payment: %w", err)
 	}
 
+	fmt.Printf("DEBUG: Successfully inserted payment %s to read model\n", evt.PaymentID)
 	return nil
 }
 

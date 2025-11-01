@@ -494,55 +494,9 @@ func main() {
 		}
 	})
 
-	// Payment routes
-	mux.HandleFunc("/payments", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			paymentController.CreatePayment(w, r)
-		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	})
-
-	mux.HandleFunc("/payments/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			if strings.Contains(r.URL.Path, "/cancel") {
-				// This is a cancel request
-				paymentController.CancelPayment(w, r)
-			} else {
-				// This is a get request
-				paymentController.GetPayment(w, r)
-			}
-		case http.MethodPut:
-			if strings.Contains(r.URL.Path, "/cancel") {
-				paymentController.CancelPayment(w, r)
-			} else {
-				w.WriteHeader(http.StatusMethodNotAllowed)
-			}
-		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	})
-
-	// Payment special routes
-	mux.HandleFunc("/payments/order/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			paymentController.GetPaymentByOrderCode(w, r)
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	})
-
-	mux.HandleFunc("/payments/user/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			paymentController.ListUserPayments(w, r)
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	})
-
-	// PayOS webhook and return URLs
+	// Payment routes - Order matters! More specific routes first
+	
+	// PayOS webhook and return URLs (most specific first)
 	mux.HandleFunc("/payments/webhook", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			paymentController.WebhookHandler(w, r)
@@ -563,6 +517,58 @@ func main() {
 		if r.Method == http.MethodGet {
 			paymentController.CancelHandler(w, r)
 		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Payment base route (POST only - exact match)
+	mux.HandleFunc("/payments", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/payments" {
+			// If path is not exactly "/payments", let it fall through to /payments/ handler
+			http.NotFound(w, r)
+			return
+		}
+		switch r.Method {
+		case http.MethodPost:
+			paymentController.CreatePayment(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Payment query routes (specific paths) - These must come AFTER /payments base route
+	// Go's ServeMux will match the longest pattern first
+	mux.HandleFunc("/payments/order/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			paymentController.GetPaymentByOrderCode(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/payments/user/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			paymentController.ListUserPayments(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Payment by ID routes (with trailing slash - catches /payments/{id})
+	// This will match anything like /payments/xxx that wasn't caught by more specific routes
+	mux.HandleFunc("/payments/", func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+
+		switch r.Method {
+		case http.MethodGet:
+			paymentController.GetPayment(w, r)
+		case http.MethodPut:
+			if strings.HasSuffix(path, "/cancel") {
+				paymentController.CancelPayment(w, r)
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
