@@ -167,3 +167,22 @@ func (c *VendorStaffController) DeleteVendorStaff(w http.ResponseWriter, r *http
 	}
 	response.SendSuccess(w, r, responseData)
 }
+
+// GetMyVendorProfile handles GET /vendor-staff/profile
+// Returns the vendor staff profile with associated vendor information for the authenticated user
+func (c *VendorStaffController) GetMyVendorProfile(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from JWT token context
+	userID := middleware.GetUserID(r.Context())
+	if userID == "" {
+		middleware.HandleError(w, r, errors.NewUnauthorizedError("Authentication required"))
+		return
+	}
+
+	profile, err := c.service.GetVendorStaffProfile(r.Context(), userID)
+	if err != nil {
+		middleware.HandleError(w, r, err)
+		return
+	}
+
+	response.SendSuccess(w, r, profile)
+}
