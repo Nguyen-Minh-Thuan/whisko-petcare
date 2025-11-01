@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"whisko-petcare/internal/domain/aggregate"
+	"whisko-petcare/internal/domain/event"
 	"whisko-petcare/internal/domain/repository"
 	"whisko-petcare/internal/infrastructure/bus"
 	"whisko-petcare/internal/infrastructure/payos"
@@ -151,24 +152,37 @@ func (h *CreatePaymentWithUoWHandler) Handle(ctx context.Context, cmd *CreatePay
 		return nil, errors.NewInternalError(fmt.Sprintf("failed to set PayOS details: %v", err))
 	}
 
+	// CRITICAL: Get events BEFORE calling Save (Save will mark them as committed and clear them!)
+	events := payment.GetUncommittedEvents()
+	fmt.Printf("========================================\n")
+	fmt.Printf("🎯 CreatePaymentHandler: Got %d uncommitted events BEFORE save\n", len(events))
+	for i, evt := range events {
+		fmt.Printf("  Event %d: Type=%s, %T\n", i+1, evt.EventType(), evt)
+		if pc, ok := evt.(*event.PaymentCreated); ok {
+			fmt.Printf("    PaymentID=%s, OrderCode=%d\n", pc.PaymentID, pc.OrderCode)
+		}
+	}
+	fmt.Printf("========================================\n")
+
 	// Save payment using repository from unit of work
 	paymentRepo := uow.PaymentRepository()
 	if err := paymentRepo.Save(ctx, payment); err != nil {
 		uow.Rollback(ctx)
 		return nil, errors.NewInternalError(fmt.Sprintf("failed to save payment: %v", err))
 	}
-
-	// Publish events asynchronously
-	events := payment.GetUncommittedEvents()
-	fmt.Printf("DEBUG: Publishing %d payment events\n", len(events))
-	for i, evt := range events {
-		fmt.Printf("DEBUG: Event %d - Type: %T\n", i, evt)
-	}
-	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
-		// Log warning but don't fail the command (eventual consistency)
-		fmt.Printf("ERROR: failed to publish payment events: %v\n", err)
+	
+	if len(events) == 0 {
+		fmt.Printf("⚠️  WARNING: No events to publish!\n")
 	} else {
-		fmt.Printf("DEBUG: Successfully published %d events\n", len(events))
+		fmt.Printf("📤 Publishing %d events to EventBus...\n", len(events))
+		if err := h.eventBus.PublishBatch(ctx, events); err != nil {
+			// Log warning but don't fail the command (eventual consistency)
+			fmt.Printf("❌ ERROR: failed to publish payment events: %v\n", err)
+			fmt.Printf("========================================\n")
+		} else {
+			fmt.Printf("✅ Successfully published %d events to EventBus\n", len(events))
+			fmt.Printf("========================================\n")
+		}
 	}
 
 	// Commit transaction
@@ -255,6 +269,9 @@ func (h *CancelPaymentWithUoWHandler) Handle(ctx context.Context, cmd *CancelPay
 		return errors.NewValidationError(fmt.Sprintf("failed to mark payment as cancelled: %v", err))
 	}
 
+	// Get events BEFORE saving (Save will clear them)
+	events := payment.GetUncommittedEvents()
+
 	// Save updated payment
 	if err := paymentRepo.Save(ctx, payment); err != nil {
 		uow.Rollback(ctx)
@@ -262,7 +279,6 @@ func (h *CancelPaymentWithUoWHandler) Handle(ctx context.Context, cmd *CancelPay
 	}
 
 	// Publish events asynchronously
-	events := payment.GetUncommittedEvents()
 	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
 		fmt.Printf("Warning: failed to publish payment events: %v\n", err)
 	}
@@ -300,6 +316,10 @@ func NewConfirmPaymentWithUoWHandler(
 
 // Handle processes the confirm payment command
 func (h *ConfirmPaymentWithUoWHandler) Handle(ctx context.Context, cmd *ConfirmPaymentCommand) error {
+	fmt.Printf("========================================\n")
+	fmt.Printf("🔔 ConfirmPaymentHandler: Processing order code %d\n", cmd.OrderCode)
+	fmt.Printf("========================================\n")
+	
 	if cmd == nil {
 		return errors.NewValidationError("command cannot be nil")
 	}
@@ -322,33 +342,45 @@ func (h *ConfirmPaymentWithUoWHandler) Handle(ctx context.Context, cmd *ConfirmP
 	payment, err := paymentRepo.GetByOrderCode(ctx, cmd.OrderCode)
 	if err != nil {
 		uow.Rollback(ctx)
+		fmt.Printf("❌ Payment not found for order code: %d, Error: %v\n", cmd.OrderCode, err)
 		return errors.NewNotFoundError(fmt.Sprintf("payment not found: %v", err))
 	}
+	
+	fmt.Printf("✅ Found payment: ID=%s, Current Status=%s\n", payment.ID(), payment.Status())
 
 	// Verify payment status with PayOS
+	fmt.Printf("🔍 Checking payment status with PayOS...\n")
 	payOSInfo, err := h.payOSService.GetPaymentLinkInformation(ctx, cmd.OrderCode)
 	if err != nil {
 		uow.Rollback(ctx)
+		fmt.Printf("❌ Failed to get PayOS info: %v\n", err)
 		return errors.NewInternalError(fmt.Sprintf("failed to get PayOS payment info: %v", err))
 	}
 
 	if !payOSInfo.Success {
 		uow.Rollback(ctx)
+		fmt.Printf("❌ PayOS request failed: %s\n", payOSInfo.Desc)
 		return errors.NewInternalError(fmt.Sprintf("PayOS payment info request failed: %s", payOSInfo.Desc))
 	}
+
+	fmt.Printf("💰 PayOS Status: %s\n", payOSInfo.Data.Status)
 
 	// Update payment status based on PayOS response
 	var paymentWasPaid bool
 	switch payOSInfo.Data.Status {
 	case "PAID":
+		fmt.Printf("✅ Payment is PAID - marking as paid\n")
 		err = payment.MarkAsPaid()
 		paymentWasPaid = true
 	case "CANCELLED":
+		fmt.Printf("❌ Payment is CANCELLED - marking as cancelled\n")
 		err = payment.MarkAsCancelled()
 	case "EXPIRED":
+		fmt.Printf("⏰ Payment is EXPIRED - marking as expired\n")
 		err = payment.MarkAsExpired()
 	default:
 		// Payment is still pending or in unknown state
+		fmt.Printf("⚠️  Payment status unknown or still pending: %s\n", payOSInfo.Data.Status)
 		uow.Rollback(ctx)
 		return nil
 	}
@@ -358,6 +390,9 @@ func (h *ConfirmPaymentWithUoWHandler) Handle(ctx context.Context, cmd *ConfirmP
 		return errors.NewValidationError(fmt.Sprintf("failed to update payment status: %v", err))
 	}
 
+	// Get events BEFORE saving (Save will clear them)
+	events := payment.GetUncommittedEvents()
+
 	// Save updated payment
 	if err := paymentRepo.Save(ctx, payment); err != nil {
 		uow.Rollback(ctx)
@@ -365,7 +400,6 @@ func (h *ConfirmPaymentWithUoWHandler) Handle(ctx context.Context, cmd *ConfirmP
 	}
 
 	// Publish events asynchronously
-	events := payment.GetUncommittedEvents()
 	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
 		fmt.Printf("Warning: failed to publish payment events: %v\n", err)
 	}
@@ -377,7 +411,13 @@ func (h *ConfirmPaymentWithUoWHandler) Handle(ctx context.Context, cmd *ConfirmP
 
 	// AUTO-CREATE SCHEDULE: If payment was successful, automatically create a schedule
 	if paymentWasPaid && h.createScheduleHandler != nil {
-		fmt.Printf("Payment successful - auto-creating schedule for payment ID: %s\n", payment.ID())
+		fmt.Printf("========================================\n")
+		fmt.Printf("📅 Auto-creating schedule for payment ID: %s\n", payment.ID())
+		fmt.Printf("   UserID: %s\n", payment.UserID())
+		fmt.Printf("   VendorID: %s\n", payment.VendorID())
+		fmt.Printf("   PetID: %s\n", payment.PetID())
+		fmt.Printf("   ServiceIDs: %v\n", payment.ServiceIDs())
+		fmt.Printf("   Time: %s to %s\n", payment.StartTime(), payment.EndTime())
 		
 		scheduleCmd := &CreateSchedule{
 			UserID:    payment.UserID(),
@@ -390,11 +430,18 @@ func (h *ConfirmPaymentWithUoWHandler) Handle(ctx context.Context, cmd *ConfirmP
 		
 		if err := h.createScheduleHandler.Handle(ctx, scheduleCmd); err != nil {
 			// Log error but don't fail the payment confirmation
-			fmt.Printf("Warning: failed to auto-create schedule after payment: %v\n", err)
+			fmt.Printf("❌ Failed to auto-create schedule: %v\n", err)
+			fmt.Printf("========================================\n")
 		} else {
-			fmt.Printf("Successfully auto-created schedule for payment ID: %s\n", payment.ID())
+			fmt.Printf("✅ Successfully auto-created schedule!\n")
+			fmt.Printf("========================================\n")
 		}
+	} else if paymentWasPaid {
+		fmt.Printf("⚠️  Payment was paid but createScheduleHandler is nil!\n")
 	}
 
+	fmt.Printf("========================================\n")
+	fmt.Printf("✅ ConfirmPaymentHandler: Completed for order %d\n", cmd.OrderCode)
+	fmt.Printf("========================================\n")
 	return nil
 }
