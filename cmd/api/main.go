@@ -269,6 +269,11 @@ func main() {
 			return vendorStaffProjection.HandleVendorStaffCreated(ctx, *e.(*event.VendorStaffCreated))
 		}))
 
+	eventBus.Subscribe("VendorStaffRoleUpdated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return vendorStaffProjection.HandleVendorStaffRoleUpdated(ctx, *e.(*event.VendorStaffRoleUpdated))
+		}))
+
 	eventBus.Subscribe("VendorStaffDeleted", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
 			return vendorStaffProjection.HandleVendorStaffDeleted(ctx, *e.(*event.VendorStaffDeleted))
@@ -349,7 +354,7 @@ func main() {
 	listSchedulesHandler := query.NewListSchedulesHandler(scheduleProjection)
 
 	// Initialize vendor staff command handlers
-	createVendorStaffHandler := command.NewCreateVendorStaffWithUoWHandler(uowFactory, eventBus)
+	createVendorStaffHandler := command.NewCreateVendorStaffWithUoWHandler(uowFactory, eventBus, userProjection)
 	deleteVendorStaffHandler := command.NewDeleteVendorStaffWithUoWHandler(uowFactory, eventBus)
 
 	// Initialize vendor staff query handlers

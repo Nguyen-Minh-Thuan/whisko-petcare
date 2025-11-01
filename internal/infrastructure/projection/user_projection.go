@@ -34,6 +34,7 @@ type UserReadModel struct {
 // UserProjection defines operations for user read model
 type UserProjection interface {
 	GetByID(ctx context.Context, id string) (*UserReadModel, error)
+	GetByEmail(ctx context.Context, email string) (*UserReadModel, error)
 	List(ctx context.Context, limit, offset int) ([]*UserReadModel, error)
 	Search(ctx context.Context, name, email string) ([]*UserReadModel, error)
 

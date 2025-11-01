@@ -201,12 +201,13 @@ func (h *GetVendorStaffProfileHandler) Handle(ctx context.Context, userID string
 
 		// Combine staff and vendor information
 		profile := map[string]interface{}{
-			"staff_id":   staff.ID,
-			"vendor_id":  staff.VendorID,
-			"user_id":    staff.UserID,
-			"is_active":  staff.IsActive,
-			"created_at": staff.CreatedAt,
-			"updated_at": staff.UpdatedAt,
+			"staff_id":       staff.ID,
+			"vendor_id":      staff.VendorID,
+			"user_id":        staff.UserID,
+			"role":           staff.Role,
+			"is_active":      staff.IsActive,
+			"created_at":     staff.CreatedAt,
+			"updated_at":     staff.UpdatedAt,
 			"vendor_name":    vendor.Name,
 			"vendor_email":   vendor.Email,
 			"vendor_phone":   vendor.Phone,

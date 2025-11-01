@@ -16,6 +16,7 @@ type VendorStaffReadModel struct {
 	ID        string    `bson:"_id" json:"id"`
 	UserID    string    `bson:"user_id" json:"user_id"`
 	VendorID  string    `bson:"vendor_id" json:"vendor_id"`
+	Role      string    `bson:"role" json:"role"` // owner, manager, or staff
 	IsActive  bool      `bson:"is_active" json:"is_active"`
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
@@ -179,6 +180,7 @@ func (p *MongoVendorStaffProjection) HandleVendorStaffCreated(ctx context.Contex
 		ID:        compositeID,
 		UserID:    evt.UserID,
 		VendorID:  evt.VendorID,
+		Role:      evt.Role,
 		IsActive:  true,
 		CreatedAt: evt.Timestamp,
 		UpdatedAt: evt.Timestamp,
@@ -187,6 +189,29 @@ func (p *MongoVendorStaffProjection) HandleVendorStaffCreated(ctx context.Contex
 	_, err := p.collection.InsertOne(ctx, vendorStaff)
 	if err != nil {
 		return fmt.Errorf("failed to insert vendor staff: %w", err)
+	}
+	
+	return nil
+}
+
+// HandleVendorStaffRoleUpdated handles VendorStaffRoleUpdated event
+func (p *MongoVendorStaffProjection) HandleVendorStaffRoleUpdated(ctx context.Context, evt event.VendorStaffRoleUpdated) error {
+	compositeID := evt.UserID + "-" + evt.VendorID
+	
+	update := bson.M{
+		"$set": bson.M{
+			"role":       evt.NewRole,
+			"updated_at": evt.Timestamp,
+		},
+	}
+	
+	_, err := p.collection.UpdateOne(
+		ctx,
+		bson.M{"_id": compositeID},
+		update,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update vendor staff role: %w", err)
 	}
 	
 	return nil

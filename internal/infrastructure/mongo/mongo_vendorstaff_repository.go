@@ -59,6 +59,7 @@ func (r *MongoVendorStaffRepository) Save(ctx context.Context, vendorStaff *aggr
 		"version":    vendorStaff.GetVersion(),
 		"user_id":    vendorStaff.UserID(),
 		"vendor_id":  vendorStaff.VendorID(),
+		"role":       string(vendorStaff.Role()),
 		"is_active":  vendorStaff.IsActive(),
 		"created_at": vendorStaff.CreatedAt(),
 		"updated_at": vendorStaff.UpdatedAt(),
@@ -117,9 +118,14 @@ func (r *MongoVendorStaffRepository) GetByID(ctx context.Context, id string) (*a
 	}
 
 	// Reconstruct vendor staff from document
+	role := getVendorStaffString(result, "role")
+	if role == "" {
+		role = string(aggregate.VendorStaffRoleStaff) // Default if missing
+	}
 	vendorStaff, err := aggregate.NewVendorStaff(
 		getVendorStaffString(result, "user_id"),
 		getVendorStaffString(result, "vendor_id"),
+		aggregate.VendorStaffRole(role),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to reconstruct vendor staff: %w", err)

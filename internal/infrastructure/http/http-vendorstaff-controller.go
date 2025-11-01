@@ -25,10 +25,14 @@ func NewVendorStaffController(service *services.VendorStaffService) *VendorStaff
 }
 
 // CreateVendorStaff handles POST /vendor-staffs
+// This endpoint finds a user by email, creates a vendor with default or provided values, and links them
 func (c *VendorStaffController) CreateVendorStaff(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		UserID   string `json:"user_id"`
-		VendorID string `json:"vendor_id"`
+		Email         string `json:"email"`
+		VendorName    string `json:"vendor_name,omitempty"`
+		VendorEmail   string `json:"vendor_email,omitempty"`
+		VendorPhone   string `json:"vendor_phone,omitempty"`
+		VendorAddress string `json:"vendor_address,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -37,8 +41,11 @@ func (c *VendorStaffController) CreateVendorStaff(w http.ResponseWriter, r *http
 	}
 
 	cmd := command.CreateVendorStaff{
-		UserID:   req.UserID,
-		VendorID: req.VendorID,
+		Email:         req.Email,
+		VendorName:    req.VendorName,
+		VendorEmail:   req.VendorEmail,
+		VendorPhone:   req.VendorPhone,
+		VendorAddress: req.VendorAddress,
 	}
 
 	if err := c.service.CreateVendorStaff(r.Context(), &cmd); err != nil {
@@ -47,9 +54,8 @@ func (c *VendorStaffController) CreateVendorStaff(w http.ResponseWriter, r *http
 	}
 
 	responseData := map[string]interface{}{
-		"user_id":   cmd.UserID,
-		"vendor_id": cmd.VendorID,
-		"message":   "Vendor staff created successfully",
+		"email":   cmd.Email,
+		"message": "Vendor staff created successfully. A new vendor has been created and linked to the user.",
 	}
 	response.SendCreated(w, r, responseData)
 }
