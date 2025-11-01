@@ -53,22 +53,21 @@ func (r *MongoPetRepository) Save(ctx context.Context, pet *aggregate.Pet) error
 	}
 
 	// Prepare entity document for MongoDB
+	// NOTE: Do NOT include vaccination_records, medical_history, allergies here
+	// These are managed by the projection layer (read model) via events
 	entityDoc := bson.M{
-		"_id":                  pet.GetID(),
-		"version":              pet.GetVersion(),
-		"user_id":              pet.UserID(),
-		"name":                 pet.Name(),
-		"species":              pet.Species(),
-		"breed":                pet.Breed(),
-		"age":                  pet.Age(),
-		"weight":               pet.Weight(),
-		"image_url":            pet.ImageUrl(),
-		"is_active":            pet.IsActive(),
-		"created_at":           pet.CreatedAt(),
-		"updated_at":           pet.UpdatedAt(),
-		"vaccination_records":  pet.VaccinationRecords(),
-		"medical_history":      pet.MedicalHistory(),
-		"allergies":            pet.Allergies(),
+		"_id":         pet.GetID(),
+		"version":     pet.GetVersion(),
+		"user_id":     pet.UserID(),
+		"name":        pet.Name(),
+		"species":     pet.Species(),
+		"breed":       pet.Breed(),
+		"age":         pet.Age(),
+		"weight":      pet.Weight(),
+		"image_url":   pet.ImageUrl(),
+		"is_active":   pet.IsActive(),
+		"created_at":  pet.CreatedAt(),
+		"updated_at":  pet.UpdatedAt(),
 	}
 	
 	// Upsert the entity document in the database
