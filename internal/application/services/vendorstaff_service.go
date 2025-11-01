@@ -15,6 +15,7 @@ type VendorStaffService struct {
 	listVendorStaffByVendorHandler *query.ListVendorStaffByVendorHandler
 	listVendorStaffByUserHandler   *query.ListVendorStaffByUserHandler
 	listVendorStaffsHandler        *query.ListVendorStaffsHandler
+	getVendorStaffProfileHandler   *query.GetVendorStaffProfileHandler
 }
 
 // NewVendorStaffService creates a new vendor staff service
@@ -25,6 +26,7 @@ func NewVendorStaffService(
 	listVendorStaffByVendorHandler *query.ListVendorStaffByVendorHandler,
 	listVendorStaffByUserHandler *query.ListVendorStaffByUserHandler,
 	listVendorStaffsHandler *query.ListVendorStaffsHandler,
+	getVendorStaffProfileHandler *query.GetVendorStaffProfileHandler,
 ) *VendorStaffService {
 	return &VendorStaffService{
 		createVendorStaffHandler:       createVendorStaffHandler,
@@ -33,6 +35,7 @@ func NewVendorStaffService(
 		listVendorStaffByVendorHandler: listVendorStaffByVendorHandler,
 		listVendorStaffByUserHandler:   listVendorStaffByUserHandler,
 		listVendorStaffsHandler:        listVendorStaffsHandler,
+		getVendorStaffProfileHandler:   getVendorStaffProfileHandler,
 	}
 }
 
@@ -64,4 +67,9 @@ func (s *VendorStaffService) ListVendorStaffByUser(ctx context.Context, userID s
 // ListVendorStaffs retrieves all vendor staffs with pagination
 func (s *VendorStaffService) ListVendorStaffs(ctx context.Context, offset, limit int) ([]interface{}, error) {
 	return s.listVendorStaffsHandler.Handle(ctx, offset, limit)
+}
+
+// GetVendorStaffProfile retrieves vendor staff profile with associated vendor information
+func (s *VendorStaffService) GetVendorStaffProfile(ctx context.Context, userID string) (interface{}, error) {
+	return s.getVendorStaffProfileHandler.Handle(ctx, userID)
 }

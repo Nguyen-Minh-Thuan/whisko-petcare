@@ -141,3 +141,73 @@ func (h *ListVendorStaffsHandler) Handle(ctx context.Context, offset, limit int)
 
 	return vendorStaffs, nil
 }
+
+// GetVendorStaffProfileHandler handles getting vendor staff profile with vendor info
+type GetVendorStaffProfileHandler struct {
+	vendorStaffProjection VendorStaffProjection
+	vendorProjection      VendorProjection
+}
+
+// NewGetVendorStaffProfileHandler creates a new get vendor staff profile handler
+func NewGetVendorStaffProfileHandler(
+	vendorStaffProjection VendorStaffProjection,
+	vendorProjection VendorProjection,
+) *GetVendorStaffProfileHandler {
+	return &GetVendorStaffProfileHandler{
+		vendorStaffProjection: vendorStaffProjection,
+		vendorProjection:      vendorProjection,
+	}
+}
+
+// Handle processes the get vendor staff profile query
+func (h *GetVendorStaffProfileHandler) Handle(ctx context.Context, userID string) (interface{}, error) {
+	if userID == "" {
+		return nil, errors.NewValidationError("user_id is required")
+	}
+
+	// Get all vendor staff entries for this user
+	vendorStaffs, err := h.vendorStaffProjection.GetByUserID(ctx, userID, 0, 100)
+	if err != nil {
+		return nil, errors.NewInternalError(fmt.Sprintf("failed to get vendor staffs: %v", err))
+	}
+
+	if len(vendorStaffs) == 0 {
+		return nil, errors.NewNotFoundError("vendor staff profile")
+	}
+
+	// Prepare response with vendor staff info and associated vendor details
+	var profiles []interface{}
+	
+	for _, staffInterface := range vendorStaffs {
+		staff := staffInterface.(map[string]interface{})
+		vendorID, ok := staff["vendor_id"].(string)
+		if !ok {
+			continue
+		}
+
+		// Get vendor information
+		vendor, err := h.vendorProjection.GetByID(ctx, vendorID)
+		if err != nil {
+			// If vendor not found, skip this entry but don't fail entirely
+			continue
+		}
+
+		// Combine staff and vendor information
+		profile := map[string]interface{}{
+			"vendor_staff": staff,
+			"vendor":       vendor,
+		}
+		profiles = append(profiles, profile)
+	}
+
+	if len(profiles) == 0 {
+		return nil, errors.NewNotFoundError("valid vendor staff profile")
+	}
+
+	// If there's only one profile, return it directly; otherwise return array
+	if len(profiles) == 1 {
+		return profiles[0], nil
+	}
+
+	return profiles, nil
+}

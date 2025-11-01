@@ -21,6 +21,7 @@ import (
 	"whisko-petcare/internal/infrastructure/payos"
 	"whisko-petcare/internal/infrastructure/projection"
 	jwtutil "whisko-petcare/pkg/jwt"
+	"whisko-petcare/pkg/middleware"
 
 	"github.com/joho/godotenv"
 )
@@ -356,6 +357,7 @@ func main() {
 	listVendorStaffByVendorHandler := query.NewListVendorStaffByVendorHandler(vendorStaffProjection)
 	listVendorStaffByUserHandler := query.NewListVendorStaffByUserHandler(vendorStaffProjection)
 	listVendorStaffsHandler := query.NewListVendorStaffsHandler(vendorStaffProjection)
+	getVendorStaffProfileHandler := query.NewGetVendorStaffProfileHandler(vendorStaffProjection, vendorProjection)
 
 	// Initialize application services
 	userService := services.NewUserService(
@@ -420,6 +422,7 @@ func main() {
 		listVendorStaffByVendorHandler,
 		listVendorStaffByUserHandler,
 		listVendorStaffsHandler,
+		getVendorStaffProfileHandler,
 	)
 
 	// Start event bus
@@ -783,6 +786,16 @@ func main() {
 		case http.MethodDelete:
 			vendorStaffController.DeleteVendorStaff(w, r)
 		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Vendor Staff profile route (requires authentication)
+	mux.HandleFunc("/vendor-staff/profile", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			// Apply JWT authentication middleware
+			middleware.JWTAuthMiddleware(jwtManager)(http.HandlerFunc(vendorStaffController.GetMyVendorProfile)).ServeHTTP(w, r)
+		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
