@@ -304,6 +304,7 @@ func main() {
 	createPetHandler := command.NewCreatePetWithUoWHandler(uowFactory, eventBus)
 	updatePetHandler := command.NewUpdatePetWithUoWHandler(uowFactory, eventBus)
 	deletePetHandler := command.NewDeletePetWithUoWHandler(uowFactory, eventBus)
+	updatePetImageHandler := command.NewUpdatePetImageWithUoWHandler(uowFactory, eventBus)
 	addPetVaccinationHandler := command.NewAddPetVaccinationWithUoWHandler(uowFactory, eventBus)
 	addPetMedicalRecordHandler := command.NewAddPetMedicalRecordWithUoWHandler(uowFactory, eventBus)
 	addPetAllergyHandler := command.NewAddPetAllergyWithUoWHandler(uowFactory, eventBus)
@@ -318,6 +319,7 @@ func main() {
 	createVendorHandler := command.NewCreateVendorWithUoWHandler(uowFactory, eventBus)
 	updateVendorHandler := command.NewUpdateVendorWithUoWHandler(uowFactory, eventBus)
 	deleteVendorHandler := command.NewDeleteVendorWithUoWHandler(uowFactory, eventBus)
+	updateVendorImageHandler := command.NewUpdateVendorImageWithUoWHandler(uowFactory, eventBus)
 
 	// Initialize vendor query handlers
 	getVendorHandler := query.NewGetVendorHandler(vendorProjection)
@@ -327,6 +329,7 @@ func main() {
 	createServiceHandler := command.NewCreateServiceWithUoWHandler(uowFactory, eventBus)
 	updateServiceHandler := command.NewUpdateServiceWithUoWHandler(uowFactory, eventBus)
 	deleteServiceHandler := command.NewDeleteServiceWithUoWHandler(uowFactory, eventBus)
+	updateServiceImageHandler := command.NewUpdateServiceImageWithUoWHandler(uowFactory, eventBus)
 
 	// Initialize service query handlers
 	getServiceHandler := query.NewGetServiceHandler(serviceProjection)
@@ -370,6 +373,7 @@ func main() {
 		createPetHandler,
 		updatePetHandler,
 		deletePetHandler,
+		updatePetImageHandler,
 		addPetVaccinationHandler,
 		addPetMedicalRecordHandler,
 		addPetAllergyHandler,
@@ -383,6 +387,7 @@ func main() {
 		createVendorHandler,
 		updateVendorHandler,
 		deleteVendorHandler,
+		updateVendorImageHandler,
 		getVendorHandler,
 		listVendorsHandler,
 	)
@@ -391,6 +396,7 @@ func main() {
 		createServiceHandler,
 		updateServiceHandler,
 		deleteServiceHandler,
+		updateServiceImageHandler,
 		getServiceHandler,
 		listVendorServicesHandler,
 		listServicesHandler,
@@ -598,11 +604,16 @@ func main() {
 		path := strings.TrimPrefix(r.URL.Path, "/pets/")
 		parts := strings.Split(path, "/")
 		
-		// Check for health endpoints: /pets/{id}/vaccinations, /pets/{id}/medical-records, /pets/{id}/allergies
+		// Check for health endpoints: /pets/{id}/vaccinations, /pets/{id}/medical-records, /pets/{id}/allergies, /pets/{id}/image
 		if len(parts) >= 2 {
 			resource := parts[1]
 			
 			switch resource {
+			case "image":
+				if r.Method == http.MethodPut {
+					petController.UpdatePetImage(w, r)
+					return
+				}
 			case "vaccinations":
 				if r.Method == http.MethodPost {
 					petController.AddPetVaccination(w, r)
@@ -652,6 +663,11 @@ func main() {
 	})
 
 	mux.HandleFunc("/vendors/", func(w http.ResponseWriter, r *http.Request) {
+		// Check for /vendors/{vendorID}/image
+		if strings.Contains(r.URL.Path, "/image") && r.Method == http.MethodPut {
+			vendorController.UpdateVendorImage(w, r)
+			return
+		}
 		// Check for /vendors/{vendorID}/services
 		if strings.Contains(r.URL.Path, "/services") && r.Method == http.MethodGet {
 			serviceController.ListVendorServices(w, r)
@@ -693,6 +709,12 @@ func main() {
 	})
 
 	mux.HandleFunc("/services/", func(w http.ResponseWriter, r *http.Request) {
+		// Check for /services/{id}/image
+		if strings.Contains(r.URL.Path, "/image") && r.Method == http.MethodPut {
+			serviceController.UpdateServiceImage(w, r)
+			return
+		}
+		
 		switch r.Method {
 		case http.MethodGet:
 			serviceController.GetService(w, r)

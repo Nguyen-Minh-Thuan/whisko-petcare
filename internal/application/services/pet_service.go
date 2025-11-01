@@ -13,6 +13,7 @@ type PetService struct {
 	createPetHandler             *command.CreatePetWithUoWHandler
 	updatePetHandler             *command.UpdatePetWithUoWHandler
 	deletePetHandler             *command.DeletePetWithUoWHandler
+	updatePetImageHandler        *command.UpdatePetImageWithUoWHandler
 	addPetVaccinationHandler     *command.AddPetVaccinationWithUoWHandler
 	addPetMedicalRecordHandler   *command.AddPetMedicalRecordWithUoWHandler
 	addPetAllergyHandler         *command.AddPetAllergyWithUoWHandler
@@ -29,6 +30,7 @@ func NewPetService(
 	createPetHandler *command.CreatePetWithUoWHandler,
 	updatePetHandler *command.UpdatePetWithUoWHandler,
 	deletePetHandler *command.DeletePetWithUoWHandler,
+	updatePetImageHandler *command.UpdatePetImageWithUoWHandler,
 	addPetVaccinationHandler *command.AddPetVaccinationWithUoWHandler,
 	addPetMedicalRecordHandler *command.AddPetMedicalRecordWithUoWHandler,
 	addPetAllergyHandler *command.AddPetAllergyWithUoWHandler,
@@ -41,6 +43,7 @@ func NewPetService(
 		createPetHandler:           createPetHandler,
 		updatePetHandler:           updatePetHandler,
 		deletePetHandler:           deletePetHandler,
+		updatePetImageHandler:      updatePetImageHandler,
 		addPetVaccinationHandler:   addPetVaccinationHandler,
 		addPetMedicalRecordHandler: addPetMedicalRecordHandler,
 		addPetAllergyHandler:       addPetAllergyHandler,
@@ -112,4 +115,9 @@ func (s *PetService) AddPetAllergy(ctx context.Context, cmd command.AddPetAllerg
 // RemovePetAllergy removes an allergy from a pet
 func (s *PetService) RemovePetAllergy(ctx context.Context, cmd command.RemovePetAllergy) error {
 	return s.removePetAllergyHandler.Handle(ctx, &cmd)
+}
+
+// UpdatePetImage updates a pet's image URL
+func (s *PetService) UpdatePetImage(ctx context.Context, cmd command.UpdatePetImage) error {
+	return s.updatePetImageHandler.Handle(ctx, &cmd)
 }

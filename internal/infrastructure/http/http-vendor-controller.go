@@ -213,3 +213,77 @@ func (c *VendorController) DeleteVendor(w http.ResponseWriter, r *http.Request) 
 	}
 	response.SendSuccess(w, r, responseData)
 }
+
+// UpdateVendorImage handles PUT /vendors/{id}/image - supports multipart/form-data with image file
+func (c *VendorController) UpdateVendorImage(w http.ResponseWriter, r *http.Request) {
+	// Extract vendor ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/vendors/")
+	parts := strings.Split(path, "/")
+	
+	if len(parts) < 1 || parts[0] == "" {
+		middleware.HandleError(w, r, errors.NewValidationError("Vendor ID is required"))
+		return
+	}
+	
+	vendorID := parts[0]
+	var imageUrl string
+
+	// Check if multipart form (with image file)
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			middleware.HandleError(w, r, errors.NewValidationError("Failed to parse form"))
+			return
+		}
+
+		// Get image file
+		file, fileHeader, err := r.FormFile("image")
+		if err != nil {
+			middleware.HandleError(w, r, errors.NewValidationError("Image file is required"))
+			return
+		}
+		defer file.Close()
+		
+		// Upload to Cloudinary
+		if c.cloudinary == nil {
+			middleware.HandleError(w, r, errors.NewInternalError("Cloudinary not configured"))
+			return
+		}
+		
+		uploadRes, err := c.cloudinary.UploadVendorImage(r.Context(), file, fileHeader.Filename, vendorID)
+		if err != nil {
+			middleware.HandleError(w, r, errors.NewInternalError(fmt.Sprintf("Failed to upload image: %v", err)))
+			return
+		}
+		imageUrl = uploadRes.SecureURL
+	} else {
+		// JSON body (backward compatibility)
+		var req struct {
+			ImageUrl string `json:"image_url"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			middleware.HandleError(w, r, errors.NewValidationError("Invalid JSON format"))
+			return
+		}
+
+		if req.ImageUrl == "" {
+			middleware.HandleError(w, r, errors.NewValidationError("image_url is required"))
+			return
+		}
+		imageUrl = req.ImageUrl
+	}
+
+	cmd := command.UpdateVendorImage{
+		VendorID: vendorID,
+		ImageUrl: imageUrl,
+	}
+
+	if err := c.service.UpdateVendorImage(r.Context(), cmd); err != nil {
+		middleware.HandleError(w, r, err)
+		return
+	}
+
+	response.SendSuccess(w, r, map[string]interface{}{
+		"message":   "Vendor image updated successfully",
+		"image_url": imageUrl,
+	})
+}

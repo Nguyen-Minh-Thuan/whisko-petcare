@@ -9,12 +9,13 @@ import (
 
 // ServiceService handles service operations
 type ServiceService struct {
-	createServiceHandler      *command.CreateServiceWithUoWHandler
-	updateServiceHandler      *command.UpdateServiceWithUoWHandler
-	deleteServiceHandler      *command.DeleteServiceWithUoWHandler
-	getServiceHandler         *query.GetServiceHandler
-	listVendorServicesHandler *query.ListVendorServicesHandler
-	listServicesHandler       *query.ListServicesHandler
+	createServiceHandler       *command.CreateServiceWithUoWHandler
+	updateServiceHandler       *command.UpdateServiceWithUoWHandler
+	deleteServiceHandler       *command.DeleteServiceWithUoWHandler
+	updateServiceImageHandler  *command.UpdateServiceImageWithUoWHandler
+	getServiceHandler          *query.GetServiceHandler
+	listVendorServicesHandler  *query.ListVendorServicesHandler
+	listServicesHandler        *query.ListServicesHandler
 }
 
 // NewServiceService creates a new service service
@@ -22,6 +23,7 @@ func NewServiceService(
 	createServiceHandler *command.CreateServiceWithUoWHandler,
 	updateServiceHandler *command.UpdateServiceWithUoWHandler,
 	deleteServiceHandler *command.DeleteServiceWithUoWHandler,
+	updateServiceImageHandler *command.UpdateServiceImageWithUoWHandler,
 	getServiceHandler *query.GetServiceHandler,
 	listVendorServicesHandler *query.ListVendorServicesHandler,
 	listServicesHandler *query.ListServicesHandler,
@@ -30,6 +32,7 @@ func NewServiceService(
 		createServiceHandler:      createServiceHandler,
 		updateServiceHandler:      updateServiceHandler,
 		deleteServiceHandler:      deleteServiceHandler,
+		updateServiceImageHandler: updateServiceImageHandler,
 		getServiceHandler:         getServiceHandler,
 		listVendorServicesHandler: listVendorServicesHandler,
 		listServicesHandler:       listServicesHandler,
@@ -64,4 +67,9 @@ func (s *ServiceService) ListVendorServices(ctx context.Context, vendorID string
 // ListServices retrieves all services with pagination
 func (s *ServiceService) ListServices(ctx context.Context, offset, limit int) ([]interface{}, error) {
 	return s.listServicesHandler.Handle(ctx, offset, limit)
+}
+
+// UpdateServiceImage updates a service's image URL
+func (s *ServiceService) UpdateServiceImage(ctx context.Context, cmd command.UpdateServiceImage) error {
+	return s.updateServiceImageHandler.Handle(ctx, &cmd)
 }
