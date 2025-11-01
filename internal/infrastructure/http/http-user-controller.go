@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"whisko-petcare/internal/application/command"
 	"whisko-petcare/internal/application/query"
@@ -14,6 +13,8 @@ import (
 	"whisko-petcare/pkg/errors"
 	"whisko-petcare/pkg/middleware"
 	"whisko-petcare/pkg/response"
+
+	"github.com/google/uuid"
 )
 
 // HTTPUserController implements UserController for HTTP transport (Event Sourcing)
@@ -270,7 +271,7 @@ func extractIDFromPath(path string) string {
 }
 
 func generateUserID() string {
-	return fmt.Sprintf("user_%d", time.Now().UnixNano())
+	return uuid.New().String()
 }
 
 // UpdateUserImage handles PUT /users/{id}/image - supports multipart/form-data with image file

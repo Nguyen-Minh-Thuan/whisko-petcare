@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"whisko-petcare/internal/application/command"
 	"whisko-petcare/internal/application/services"
@@ -14,6 +13,8 @@ import (
 	"whisko-petcare/pkg/errors"
 	"whisko-petcare/pkg/middleware"
 	"whisko-petcare/pkg/response"
+
+	"github.com/google/uuid"
 )
 
 // VendorController handles HTTP requests for vendor operations
@@ -30,9 +31,9 @@ func NewVendorController(service *services.VendorService, cloudinary *cloudinary
 	}
 }
 
-// generateVendorID generates a unique vendor ID
+// generateVendorID generates a unique vendor ID using UUID
 func generateVendorID() string {
-	return fmt.Sprintf("vendor_%d", time.Now().UnixNano())
+	return uuid.New().String()
 }
 
 // CreateVendor handles POST /vendors - supports both JSON and multipart/form-data with image

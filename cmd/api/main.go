@@ -825,6 +825,15 @@ func main() {
 		}
 	})
 
+	// Get current user from token (requires authentication)
+	mux.HandleFunc("/auth/me", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			middleware.JWTAuthMiddleware(jwtManager)(http.HandlerFunc(authController.GetCurrentUser)).ServeHTTP(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
 	// Cloudinary image routes
 	if cloudinaryHandler != nil {
 		mux.HandleFunc("/api/images/upload", func(w http.ResponseWriter, r *http.Request) {

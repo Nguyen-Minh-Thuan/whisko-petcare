@@ -8,6 +8,7 @@ import (
 	"whisko-petcare/internal/domain/aggregate"
 	"whisko-petcare/internal/infrastructure/projection"
 	jwtutil "whisko-petcare/pkg/jwt"
+	"whisko-petcare/pkg/middleware"
 	"whisko-petcare/pkg/response"
 
 	"github.com/google/uuid"
@@ -159,7 +160,7 @@ func (c *HTTPAuthController) Login(w http.ResponseWriter, r *http.Request) {
 	loginCmd := &command.RecordUserLogin{
 		UserID: userModel.ID,
 	}
-	if err := c.recordLoginHandler.Handle(r.Context(), loginCmd); err != nil {
+	if loginErr := c.recordLoginHandler.Handle(r.Context(), loginCmd); loginErr != nil {
 		// Log error but don't fail login
 		// In production, use proper logger
 	}
@@ -177,6 +178,40 @@ func (c *HTTPAuthController) Login(w http.ResponseWriter, r *http.Request) {
 		"name":    userModel.Name,
 		"role":    userModel.Role,
 		"token":   token,
+	}
+
+	response.SendSuccess(w, r, resp)
+}
+
+// GetCurrentUser handles GET /auth/me - returns current user data from JWT token
+func (c *HTTPAuthController) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
+	// Extract user ID from context (set by JWT middleware)
+	// Use the middleware's GetUserIDFromContext helper to properly extract the typed context key
+	userID := middleware.GetUserID(r.Context())
+	if userID == "" {
+		response.SendUnauthorized(w, r, "User not authenticated")
+		return
+	}
+
+	// Get user from projection
+	userModel, err := c.userProjection.GetByID(r.Context(), userID)
+	if err != nil {
+		response.SendNotFound(w, r, "User not found")
+		return
+	}
+
+	// Return user data (exclude hashed password)
+	resp := map[string]interface{}{
+		"id":         userModel.ID,
+		"name":       userModel.Name,
+		"email":      userModel.Email,
+		"phone":      userModel.Phone,
+		"address":    userModel.Address,
+		"role":       userModel.Role,
+		"image_url":  userModel.ImageUrl,
+		"is_active":  userModel.IsActive,
+		"created_at": userModel.CreatedAt,
+		"updated_at": userModel.UpdatedAt,
 	}
 
 	response.SendSuccess(w, r, resp)
