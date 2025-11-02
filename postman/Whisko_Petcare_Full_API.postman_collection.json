@@ -1,0 +1,1966 @@
+{
+	"info": {
+		"_postman_id": "whisko-petcare-full-api",
+		"name": "Whisko Petcare - Complete API Collection",
+		"description": "Complete API collection for Whisko Petcare application with all endpoints organized by feature.\n\n## Features:\n- Authentication (Register, Login, Change Password, Get Profile)\n- User Management (CRUD operations)\n- Pet Management (Create, Update, Delete, List pets)\n- Vendor Management (Create, Update, Delete, List vendors)\n- Service Management (Create, Update, Delete, List services)\n- Schedule/Booking Management (Create, Cancel, Complete schedules)\n- Vendor Staff Management (Create, Delete, Get profile)\n- Payment Integration (Create, Check, Webhook)\n- Image Upload (Cloudinary integration)\n\n## Variables Used:\n- `base_url`: Base URL of the API (default: http://localhost:8080)\n- `jwt_token`: JWT token from login/register\n- `user_id`: Current user ID\n- `pet_id`: Created pet ID\n- `vendor_id`: Created vendor ID\n- `service_id`: Created service ID\n- `schedule_id`: Created schedule ID\n- `payment_id`: Created payment ID",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "pet_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "vendor_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "service_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "schedule_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "payment_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "order_code",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "🔐 Authentication",
+			"item": [
+				{
+					"name": "Register User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.data && response.data.token) {",
+									"        pm.collectionVariables.set('jwt_token', response.data.token);",
+									"        console.log('JWT token saved:', response.data.token);",
+									"    }",
+									"    if (response.data && response.data.user_id) {",
+									"        pm.collectionVariables.set('user_id', response.data.user_id);",
+									"        console.log('User ID saved:', response.data.user_id);",
+									"    }",
+									"    pm.test('User registered successfully', () => {",
+									"        pm.expect(response.success).to.be.true;",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"SecurePassword123!\",\n  \"phone\": \"+1234567890\",\n  \"address\": \"123 Main St, City, State, 12345\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"register"
+							]
+						},
+						"description": "Register a new user account. Returns JWT token on success."
+					},
+					"response": []
+				},
+				{
+					"name": "Login User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.data && response.data.token) {",
+									"        pm.collectionVariables.set('jwt_token', response.data.token);",
+									"        console.log('JWT token saved:', response.data.token);",
+									"    }",
+									"    if (response.data && response.data.user_id) {",
+									"        pm.collectionVariables.set('user_id', response.data.user_id);",
+									"        console.log('User ID saved:', response.data.user_id);",
+									"    }",
+									"    pm.test('Login successful', () => {",
+									"        pm.expect(response.success).to.be.true;",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"SecurePassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login with email and password. Returns JWT token."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current User (Me)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.test('User data retrieved', () => {",
+									"        pm.expect(response.success).to.be.true;",
+									"        pm.expect(response.data).to.have.property('id');",
+									"        pm.expect(response.data).to.have.property('email');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/auth/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"me"
+							]
+						},
+						"description": "Get current user profile from JWT token."
+					},
+					"response": []
+				},
+				{
+					"name": "Change Password",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"old_password\": \"SecurePassword123!\",\n  \"new_password\": \"NewSecurePassword456!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/change-password",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"change-password"
+							]
+						},
+						"description": "Change user password by providing old and new password."
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints for user registration, login, and password management."
+		},
+		{
+			"name": "👤 User Management",
+			"item": [
+				{
+					"name": "List Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users?limit=10&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get list of users with pagination."
+					},
+					"response": []
+				},
+				{
+					"name": "Get User by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}"
+							]
+						},
+						"description": "Get specific user by ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"name\": \"John Doe Updated\",\n  \"address\": \"456 New Street, City, State, 54321\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}"
+							]
+						},
+						"description": "Update user profile information."
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Contact",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"email\": \"newemail@example.com\",\n  \"phone\": \"+9876543210\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}"
+							]
+						},
+						"description": "Update user contact information (email, phone)."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/users/{{user_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users",
+								"{{user_id}}"
+							]
+						},
+						"description": "Delete user account."
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Image",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"image_url\": \"https://res.cloudinary.com/demo/image/upload/sample.jpg\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/users",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users"
+							]
+						},
+						"description": "Update user profile image URL."
+					},
+					"response": []
+				}
+			],
+			"description": "User management endpoints for CRUD operations."
+		},
+		{
+			"name": "🐾 Pet Management",
+			"item": [
+				{
+					"name": "Create Pet",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.data && response.data.pet_id) {",
+									"        pm.collectionVariables.set('pet_id', response.data.pet_id);",
+									"        console.log('Pet ID saved:', response.data.pet_id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"name\": \"Buddy\",\n  \"species\": \"Dog\",\n  \"breed\": \"Golden Retriever\",\n  \"age\": 3,\n  \"weight\": 30.5\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pets",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pets"
+							]
+						},
+						"description": "Create a new pet for the user."
+					},
+					"response": []
+				},
+				{
+					"name": "List User Pets",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/pets?limit=10&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pets"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get list of pets owned by the current user."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pet by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/pets/{{pet_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pets",
+								"{{pet_id}}"
+							]
+						},
+						"description": "Get specific pet by ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Pet",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pet_id\": \"{{pet_id}}\",\n  \"name\": \"Buddy Updated\",\n  \"age\": 4,\n  \"weight\": 32.0,\n  \"medical_history\": \"Vaccinated, healthy, recent checkup\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pets/{{pet_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pets",
+								"{{pet_id}}"
+							]
+						},
+						"description": "Update pet information."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Pet",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/pets/{{pet_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pets",
+								"{{pet_id}}"
+							]
+						},
+						"description": "Delete pet."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Pet Image",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pet_id\": \"{{pet_id}}\",\n  \"image_url\": \"https://res.cloudinary.com/demo/image/upload/pet.jpg\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/pets",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"pets"
+							]
+						},
+						"description": "Update pet image URL."
+					},
+					"response": []
+				}
+			],
+			"description": "Pet management endpoints for CRUD operations."
+		},
+		{
+			"name": "🏪 Vendor Management",
+			"item": [
+				{
+					"name": "Create Vendor",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.data && response.data.vendor_id) {",
+									"        pm.collectionVariables.set('vendor_id', response.data.vendor_id);",
+									"        console.log('Vendor ID saved:', response.data.vendor_id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Happy Paws Grooming\",\n  \"email\": \"contact@happypaws.com\",\n  \"phone\": \"+1234567890\",\n  \"address\": \"789 Pet Street, Pet City, PC 12345\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/vendors",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendors"
+							]
+						},
+						"description": "Create a new vendor."
+					},
+					"response": []
+				},
+				{
+					"name": "List Vendors",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/vendors?limit=10&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendors"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get list of vendors with pagination."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Vendor by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/vendors/{{vendor_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendors",
+								"{{vendor_id}}"
+							]
+						},
+						"description": "Get specific vendor by ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Vendor",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"vendor_id\": \"{{vendor_id}}\",\n  \"name\": \"Happy Paws Grooming & Spa\",\n  \"email\": \"info@happypaws.com\",\n  \"phone\": \"+1234567891\",\n  \"address\": \"789 Pet Street, Suite 100, Pet City, PC 12345\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/vendors/{{vendor_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendors",
+								"{{vendor_id}}"
+							]
+						},
+						"description": "Update vendor information."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Vendor",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/vendors/{{vendor_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendors",
+								"{{vendor_id}}"
+							]
+						},
+						"description": "Delete vendor."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Vendor Image",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"vendor_id\": \"{{vendor_id}}\",\n  \"image_url\": \"https://res.cloudinary.com/demo/image/upload/vendor.jpg\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/vendors",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendors"
+							]
+						},
+						"description": "Update vendor logo/image URL."
+					},
+					"response": []
+				}
+			],
+			"description": "Vendor management endpoints for CRUD operations."
+		},
+		{
+			"name": "🛎️ Service Management",
+			"item": [
+				{
+					"name": "Create Service",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.data && response.data.service_id) {",
+									"        pm.collectionVariables.set('service_id', response.data.service_id);",
+									"        console.log('Service ID saved:', response.data.service_id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"vendor_id\": \"{{vendor_id}}\",\n  \"name\": \"Dog Grooming - Full Service\",\n  \"description\": \"Complete grooming package including bath, haircut, nail trim, and ear cleaning\",\n  \"price\": 5000,\n  \"duration_minutes\": 90,\n  \"tags\": [\"grooming\", \"dog\", \"bath\", \"haircut\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/services",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"services"
+							]
+						},
+						"description": "Create a new service for a vendor."
+					},
+					"response": []
+				},
+				{
+					"name": "List Services",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/services?limit=10&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"services"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get list of all services with pagination."
+					},
+					"response": []
+				},
+				{
+					"name": "List Vendor Services",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/services/vendor/{{vendor_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"services",
+								"vendor",
+								"{{vendor_id}}"
+							]
+						},
+						"description": "Get all services for a specific vendor."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Service by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/services/{{service_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"services",
+								"{{service_id}}"
+							]
+						},
+						"description": "Get specific service by ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Service",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"service_id\": \"{{service_id}}\",\n  \"name\": \"Dog Grooming - Premium Package\",\n  \"description\": \"Premium grooming with spa treatment, bath, haircut, nail trim, ear cleaning, and teeth brushing\",\n  \"price\": 7500,\n  \"duration_minutes\": 120,\n  \"tags\": [\"grooming\", \"dog\", \"premium\", \"spa\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/services/{{service_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"services",
+								"{{service_id}}"
+							]
+						},
+						"description": "Update service information."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Service",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/services/{{service_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"services",
+								"{{service_id}}"
+							]
+						},
+						"description": "Delete service."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Service Image",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"service_id\": \"{{service_id}}\",\n  \"image_url\": \"https://res.cloudinary.com/demo/image/upload/service.jpg\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/services",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"services"
+							]
+						},
+						"description": "Update service image URL."
+					},
+					"response": []
+				}
+			],
+			"description": "Service management endpoints for CRUD operations."
+		},
+		{
+			"name": "📅 Schedule/Booking Management",
+			"item": [
+				{
+					"name": "Create Schedule",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.data && response.data.schedule_id) {",
+									"        pm.collectionVariables.set('schedule_id', response.data.schedule_id);",
+									"        console.log('Schedule ID saved:', response.data.schedule_id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"vendor_id\": \"{{vendor_id}}\",\n  \"pet_id\": \"{{pet_id}}\",\n  \"service_ids\": [\"{{service_id}}\"],\n  \"start_time\": \"2025-11-10T10:00:00Z\",\n  \"end_time\": \"2025-11-10T11:30:00Z\",\n  \"booking_user\": {\n    \"name\": \"John Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"phone\": \"+1234567890\",\n    \"address\": \"123 Main St, City\"\n  },\n  \"booked_vendor\": {\n    \"name\": \"Happy Paws Grooming\",\n    \"location\": \"789 Pet Street\",\n    \"phone\": \"+1234567890\",\n    \"services\": [\n      {\n        \"service_id\": \"{{service_id}}\",\n        \"name\": \"Dog Grooming\"\n      }\n    ]\n  },\n  \"assigned_pet\": {\n    \"name\": \"Buddy\",\n    \"species\": \"Dog\",\n    \"breed\": \"Golden Retriever\",\n    \"age\": 3,\n    \"weight\": 30.5\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/schedules",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules"
+							]
+						},
+						"description": "Create a new booking schedule."
+					},
+					"response": []
+				},
+				{
+					"name": "List All Schedules",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/schedules?limit=10&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get list of all schedules with pagination."
+					},
+					"response": []
+				},
+				{
+					"name": "List User Schedules",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/schedules/user/{{user_id}}?limit=10&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules",
+								"user",
+								"{{user_id}}"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get all schedules for a specific user."
+					},
+					"response": []
+				},
+				{
+					"name": "List Vendor Schedules",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/schedules/vendor/{{vendor_id}}?limit=10&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules",
+								"vendor",
+								"{{vendor_id}}"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get all schedules for a specific vendor."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Schedule by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/schedules/{{schedule_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules",
+								"{{schedule_id}}"
+							]
+						},
+						"description": "Get specific schedule by ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Complete Schedule",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"schedule_id\": \"{{schedule_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/schedules/{{schedule_id}}/complete",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules",
+								"{{schedule_id}}",
+								"complete"
+							]
+						},
+						"description": "Mark schedule as completed."
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Schedule",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"schedule_id\": \"{{schedule_id}}\",\n  \"reason\": \"Customer requested cancellation\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/schedules/{{schedule_id}}/cancel",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules",
+								"{{schedule_id}}",
+								"cancel"
+							]
+						},
+						"description": "Cancel a schedule with reason."
+					},
+					"response": []
+				},
+				{
+					"name": "Change Schedule Status",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"schedule_id\": \"{{schedule_id}}\",\n  \"status\": \"confirmed\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/schedules/{{schedule_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"schedules",
+								"{{schedule_id}}"
+							]
+						},
+						"description": "Change schedule status (pending, confirmed, completed, cancelled)."
+					},
+					"response": []
+				}
+			],
+			"description": "Schedule/booking management endpoints."
+		},
+		{
+			"name": "👥 Vendor Staff Management",
+			"item": [
+				{
+					"name": "Create Vendor Staff (Auto Vendor Creation)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"vendor_name\": \"John's Pet Services\",\n  \"vendor_email\": \"contact@johnpetservices.com\",\n  \"vendor_phone\": \"+1234567890\",\n  \"vendor_address\": \"123 Business St, City, State\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/vendor-staffs",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendor-staffs"
+							]
+						},
+						"description": "Create vendor staff by email. Automatically creates vendor and assigns user as OWNER. User role updated from 'customer' to 'vendor'."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Vendor Staff Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/vendor-staff/profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendor-staff",
+								"profile"
+							]
+						},
+						"description": "Get vendor staff profile with role and vendor information."
+					},
+					"response": []
+				},
+				{
+					"name": "List All Vendor Staffs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/vendor-staffs?limit=10&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendor-staffs"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get list of all vendor staffs with pagination."
+					},
+					"response": []
+				},
+				{
+					"name": "List Vendor Staff by Vendor",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/vendor-staffs/vendor/{{vendor_id}}?limit=10&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendor-staffs",
+								"vendor",
+								"{{vendor_id}}"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get all staff members for a specific vendor."
+					},
+					"response": []
+				},
+				{
+					"name": "List Vendor Staff by User",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/vendor-staffs/user/{{user_id}}?limit=10&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendor-staffs",
+								"user",
+								"{{user_id}}"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get all vendor associations for a specific user."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Vendor Staff by IDs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/vendor-staffs/{{user_id}}/{{vendor_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendor-staffs",
+								"{{user_id}}",
+								"{{vendor_id}}"
+							]
+						},
+						"description": "Get specific vendor staff by user ID and vendor ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Vendor Staff",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/vendor-staffs/{{user_id}}/{{vendor_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"vendor-staffs",
+								"{{user_id}}",
+								"{{vendor_id}}"
+							]
+						},
+						"description": "Remove vendor staff association."
+					},
+					"response": []
+				}
+			],
+			"description": "Vendor staff management with role-based access (Owner, Manager, Staff)."
+		},
+		{
+			"name": "💳 Payment Management",
+			"item": [
+				{
+					"name": "Create Payment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.data && response.data.payment_id) {",
+									"        pm.collectionVariables.set('payment_id', response.data.payment_id);",
+									"        console.log('Payment ID saved:', response.data.payment_id);",
+									"    }",
+									"    if (response.data && response.data.order_code) {",
+									"        pm.collectionVariables.set('order_code', response.data.order_code);",
+									"        console.log('Order Code saved:', response.data.order_code);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"schedule_id\": \"{{schedule_id}}\",\n  \"amount\": 5000,\n  \"description\": \"Dog grooming service payment\",\n  \"return_url\": \"http://localhost:3000/payment/success\",\n  \"cancel_url\": \"http://localhost:3000/payment/cancel\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/payments",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payments"
+							]
+						},
+						"description": "Create a payment for a schedule. Returns payment URL for PayOS."
+					},
+					"response": []
+				},
+				{
+					"name": "Check Payment Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/payments/check/{{order_code}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payments",
+								"check",
+								"{{order_code}}"
+							]
+						},
+						"description": "Check payment status by order code (numeric ID from PayOS)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payment by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/payments/{{payment_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payments",
+								"{{payment_id}}"
+							]
+						},
+						"description": "Get payment details by ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payment by Order Code",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/payments/order/123456",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payments",
+								"order",
+								"123456"
+							]
+						},
+						"description": "Get payment by order code."
+					},
+					"response": []
+				},
+				{
+					"name": "List User Payments",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/payments/user/{{user_id}}?limit=10&offset=0",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payments",
+								"user",
+								"{{user_id}}"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get all payments for a specific user."
+					},
+					"response": []
+				},
+				{
+					"name": "Payment Webhook",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"orderCode\": 123456,\n  \"amount\": 5000,\n  \"description\": \"Payment webhook\",\n  \"accountNumber\": \"1234567890\",\n  \"reference\": \"PAY123456\",\n  \"transactionDateTime\": \"2025-11-02T10:00:00Z\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/payments/webhook",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payments",
+								"webhook"
+							]
+						},
+						"description": "PayOS webhook for payment status updates."
+					},
+					"response": []
+				},
+				{
+					"name": "Payment Return URL",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/payments/return?orderCode=123456&status=PAID",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payments",
+								"return"
+							],
+							"query": [
+								{
+									"key": "orderCode",
+									"value": "123456"
+								},
+								{
+									"key": "status",
+									"value": "PAID"
+								}
+							]
+						},
+						"description": "Payment success return URL."
+					},
+					"response": []
+				},
+				{
+					"name": "Payment Cancel URL",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/payments/cancel?orderCode=123456",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"payments",
+								"cancel"
+							],
+							"query": [
+								{
+									"key": "orderCode",
+									"value": "123456"
+								}
+							]
+						},
+						"description": "Payment cancellation return URL."
+					},
+					"response": []
+				}
+			],
+			"description": "Payment management with PayOS integration."
+		},
+		{
+			"name": "🖼️ Image Management (Cloudinary)",
+			"item": [
+				{
+					"name": "Upload Image",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "image",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "folder",
+									"value": "users",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/images/upload",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"images",
+								"upload"
+							]
+						},
+						"description": "Upload image to Cloudinary. Returns secure URL."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Image",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"public_id\": \"users/image_id\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/images/delete",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"images",
+								"delete"
+							]
+						},
+						"description": "Delete image from Cloudinary by public ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Transform Image URL",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"public_id\": \"users/image_id\",\n  \"width\": 300,\n  \"height\": 300,\n  \"crop\": \"fill\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/images/transform",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"images",
+								"transform"
+							]
+						},
+						"description": "Get transformed image URL with specific dimensions."
+					},
+					"response": []
+				}
+			],
+			"description": "Image management with Cloudinary integration."
+		},
+		{
+			"name": "🏥 Health Check",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Check if the API server is running."
+					},
+					"response": []
+				}
+			],
+			"description": "Health check endpoint."
+		}
+	]
+}
