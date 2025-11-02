@@ -269,8 +269,12 @@ func (c *HTTPPaymentController) WebhookHandler(w http.ResponseWriter, r *http.Re
 	// Verify webhook signature
 	signature := r.Header.Get("x-signature")
 	if signature == "" {
-		fmt.Printf("❌ Webhook rejected: Missing signature\n")
-		response.SendBadRequest(w, r, "Missing signature")
+		fmt.Printf("⚠️ Webhook received without signature (PayOS test request)\n")
+		// Allow PayOS test requests during setup - respond with success
+		response.SendSuccess(w, r, map[string]interface{}{
+			"message": "Webhook endpoint is ready",
+			"status": "ok",
+		})
 		return
 	}
 	fmt.Printf("✅ Signature present: %s...\n", signature[:20])
