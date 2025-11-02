@@ -521,7 +521,7 @@ func main() {
 
 	// Manual payment status check endpoint (for local development without webhook)
 	mux.HandleFunc("/payments/check/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
+		if r.Method == http.MethodGet {
 			paymentController.CheckAndUpdatePaymentStatus(w, r)
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
