@@ -300,26 +300,50 @@ func (c *HTTPPaymentController) WebhookHandler(w http.ResponseWriter, r *http.Re
 		fmt.Printf("   Processing webhook anyway based on payload data...\n")
 	}
 
-	// Extract order code from payload (handle both integer and string formats)
+	// Extract order code from payload
+	// PayOS sends orderCode inside the "data" object
 	var orderCode int64
-	if orderCodeVal, ok := webhookPayload["orderCode"]; ok {
-		switch v := orderCodeVal.(type) {
-		case float64:
-			orderCode = int64(v)
-		case int64:
-			orderCode = v
-		case int:
-			orderCode = int64(v)
-		case string:
-			// Try to parse string to int64
-			if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
-				orderCode = parsed
+	
+	// First, try to get data object
+	if dataObj, ok := webhookPayload["data"].(map[string]interface{}); ok {
+		// orderCode is inside data
+		if orderCodeVal, exists := dataObj["orderCode"]; exists {
+			switch v := orderCodeVal.(type) {
+			case float64:
+				orderCode = int64(v)
+			case int64:
+				orderCode = v
+			case int:
+				orderCode = int64(v)
+			case string:
+				if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
+					orderCode = parsed
+				}
+			}
+		}
+	}
+	
+	// Fallback: try top-level orderCode (for backward compatibility)
+	if orderCode == 0 {
+		if orderCodeVal, ok := webhookPayload["orderCode"]; ok {
+			switch v := orderCodeVal.(type) {
+			case float64:
+				orderCode = int64(v)
+			case int64:
+				orderCode = v
+			case int:
+				orderCode = int64(v)
+			case string:
+				if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
+					orderCode = parsed
+				}
 			}
 		}
 	}
 	
 	if orderCode == 0 {
 		fmt.Printf("❌ Webhook rejected: Missing or invalid orderCode in payload\n")
+		fmt.Printf("   Payload structure: %+v\n", webhookPayload)
 		response.SendBadRequest(w, r, "Missing orderCode")
 		return
 	}
