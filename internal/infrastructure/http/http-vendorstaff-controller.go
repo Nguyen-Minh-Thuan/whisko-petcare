@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -131,6 +132,8 @@ func (c *VendorStaffController) ListVendorStaffByUser(w http.ResponseWriter, r *
 		return
 	}
 	userID := parts[0]
+	
+	fmt.Printf("📋 ListVendorStaffByUser: userID=%s, path=%s\n", userID, r.URL.Path)
 
 	// Parse query parameters
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
@@ -138,10 +141,12 @@ func (c *VendorStaffController) ListVendorStaffByUser(w http.ResponseWriter, r *
 
 	vendorStaffs, err := c.service.ListVendorStaffByUser(r.Context(), userID, offset, limit)
 	if err != nil {
+		fmt.Printf("❌ ListVendorStaffByUser error: %v\n", err)
 		middleware.HandleError(w, r, err)
 		return
 	}
-
+	
+	fmt.Printf("✅ ListVendorStaffByUser: Found %d vendor staffs for user %s\n", len(vendorStaffs), userID)
 	response.SendSuccess(w, r, vendorStaffs)
 }
 

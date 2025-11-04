@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"whisko-petcare/internal/domain/event"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -113,16 +114,22 @@ func (p *MongoVendorStaffProjection) GetByVendorID(ctx context.Context, vendorID
 
 // GetByUserID retrieves vendor staffs by user ID with pagination
 func (p *MongoVendorStaffProjection) GetByUserID(ctx context.Context, userID string, offset, limit int) ([]interface{}, error) {
+	fmt.Printf("🔍 MongoDB Query: GetByUserID - userID=%s, offset=%d, limit=%d\n", userID, offset, limit)
+	
 	opts := options.Find().
 		SetSkip(int64(offset)).
 		SetLimit(int64(limit)).
 		SetSort(bson.D{{Key: "created_at", Value: -1}})
 	
-	cursor, err := p.collection.Find(ctx, bson.M{
+	filter := bson.M{
 		"user_id":   userID,
 		"is_active": true,
-	}, opts)
+	}
+	fmt.Printf("   Filter: %+v\n", filter)
+	
+	cursor, err := p.collection.Find(ctx, filter, opts)
 	if err != nil {
+		fmt.Printf("❌ MongoDB Find error: %v\n", err)
 		return nil, err
 	}
 	defer cursor.Close(ctx)
@@ -131,15 +138,18 @@ func (p *MongoVendorStaffProjection) GetByUserID(ctx context.Context, userID str
 	for cursor.Next(ctx) {
 		var vendorStaff VendorStaffReadModel
 		if err := cursor.Decode(&vendorStaff); err != nil {
+			fmt.Printf("❌ MongoDB Decode error: %v\n", err)
 			return nil, err
 		}
 		vendorStaffs = append(vendorStaffs, vendorStaff)
 	}
 	
 	if err := cursor.Err(); err != nil {
+		fmt.Printf("❌ MongoDB Cursor error: %v\n", err)
 		return nil, err
 	}
 	
+	fmt.Printf("✅ MongoDB Query Result: Found %d vendor staffs for user_id=%s\n", len(vendorStaffs), userID)
 	return vendorStaffs, nil
 }
 
