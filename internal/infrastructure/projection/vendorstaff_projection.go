@@ -82,33 +82,69 @@ func (p *MongoVendorStaffProjection) GetByID(ctx context.Context, userID, vendor
 
 // GetByVendorID retrieves vendor staffs by vendor ID with pagination
 func (p *MongoVendorStaffProjection) GetByVendorID(ctx context.Context, vendorID string, offset, limit int) ([]interface{}, error) {
+	fmt.Printf("========================================\n")
+	fmt.Printf("🔍 MongoDB Query: GetByVendorID\n")
+	fmt.Printf("   Collection: %s\n", p.collection.Name())
+	fmt.Printf("   Database: %s\n", p.collection.Database().Name())
+	fmt.Printf("   VendorID: %s\n", vendorID)
+	fmt.Printf("   Offset: %d, Limit: %d\n", offset, limit)
+	fmt.Printf("   Filter: {vendor_id: '%s', is_active: true}\n", vendorID)
+	
+	// First, check total count in collection
+	totalCount, _ := p.collection.CountDocuments(ctx, bson.M{})
+	fmt.Printf("   Total documents in collection: %d\n", totalCount)
+	
+	// Count matching documents
+	matchCount, _ := p.collection.CountDocuments(ctx, bson.M{"vendor_id": vendorID})
+	fmt.Printf("   Documents with vendor_id='%s': %d\n", vendorID, matchCount)
+	
+	// Count matching documents with is_active
+	activeCount, _ := p.collection.CountDocuments(ctx, bson.M{
+		"vendor_id": vendorID,
+		"is_active": true,
+	})
+	fmt.Printf("   Documents with vendor_id='%s' AND is_active=true: %d\n", vendorID, activeCount)
+	
 	opts := options.Find().
 		SetSkip(int64(offset)).
 		SetLimit(int64(limit)).
 		SetSort(bson.D{{Key: "created_at", Value: -1}})
 	
-	cursor, err := p.collection.Find(ctx, bson.M{
+	filter := bson.M{
 		"vendor_id": vendorID,
 		"is_active": true,
-	}, opts)
+	}
+	
+	cursor, err := p.collection.Find(ctx, filter, opts)
 	if err != nil {
+		fmt.Printf("❌ MongoDB Find Error: %v\n", err)
+		fmt.Printf("========================================\n")
 		return nil, err
 	}
 	defer cursor.Close(ctx)
 	
 	var vendorStaffs []interface{}
+	recordCount := 0
 	for cursor.Next(ctx) {
+		recordCount++
 		var vendorStaff VendorStaffReadModel
 		if err := cursor.Decode(&vendorStaff); err != nil {
+			fmt.Printf("❌ MongoDB Decode Error (record %d): %v\n", recordCount, err)
 			return nil, err
 		}
+		fmt.Printf("   Record %d: ID=%s, UserID=%s, VendorID=%s, Role=%s, IsActive=%v\n", 
+			recordCount, vendorStaff.ID, vendorStaff.UserID, vendorStaff.VendorID, vendorStaff.Role, vendorStaff.IsActive)
 		vendorStaffs = append(vendorStaffs, vendorStaff)
 	}
 	
 	if err := cursor.Err(); err != nil {
+		fmt.Printf("❌ MongoDB Cursor Error: %v\n", err)
+		fmt.Printf("========================================\n")
 		return nil, err
 	}
 	
+	fmt.Printf("✅ Successfully retrieved %d vendor staff records\n", len(vendorStaffs))
+	fmt.Printf("========================================\n")
 	return vendorStaffs, nil
 }
 

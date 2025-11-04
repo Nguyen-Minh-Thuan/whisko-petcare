@@ -785,6 +785,18 @@ func main() {
 	})
 
 	mux.HandleFunc("/vendor-staffs/", func(w http.ResponseWriter, r *http.Request) {
+		// Check for /vendor-staffs/user/{userID} pattern
+		if strings.Contains(r.URL.Path, "/vendor-staffs/user/") && r.Method == http.MethodGet {
+			vendorStaffController.ListVendorStaffByUser(w, r)
+			return
+		}
+		
+		// Check for /vendor-staffs/vendor/{vendorID} pattern
+		if strings.Contains(r.URL.Path, "/vendor-staffs/vendor/") && r.Method == http.MethodGet {
+			vendorStaffController.ListVendorStaffByVendor(w, r)
+			return
+		}
+		
 		switch r.Method {
 		case http.MethodGet:
 			vendorStaffController.GetVendorStaff(w, r)
