@@ -232,6 +232,23 @@ func (s *Service) GetThumbnailURL(publicID string, size int) (string, error) {
 	return s.GetTransformedURL(publicID, transformation)
 }
 
+// UploadUserImage uploads a user profile image with optimized settings
+func (s *Service) UploadUserImage(ctx context.Context, file io.Reader, filename string, userID string) (*UploadResult, error) {
+	opts := &UploadOptions{
+		Folder:         "users",
+		PublicID:       fmt.Sprintf("user_%s_%d", userID, time.Now().Unix()),
+		UniqueFilename: false,
+		Overwrite:      false,
+		Tags:           []string{"user", userID},
+		ResourceType:   "image",
+		AllowedFormats: []string{"jpg", "jpeg", "png", "webp"},
+		// Apply basic optimization during upload
+		Transformation: "q_auto,f_auto",
+	}
+
+	return s.UploadFile(ctx, file, filename, opts)
+}
+
 // UploadPetImage uploads a pet image with optimized settings
 func (s *Service) UploadPetImage(ctx context.Context, file io.Reader, filename string, petID string) (*UploadResult, error) {
 	opts := &UploadOptions{

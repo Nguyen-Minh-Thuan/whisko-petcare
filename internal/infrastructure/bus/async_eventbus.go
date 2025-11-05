@@ -52,8 +52,10 @@ func (b *AsyncEventBus) Publish(ctx context.Context, evt event.DomainEvent) erro
 	handlers, exists := b.handlers[evt.EventType()]
 	b.mu.RUnlock()
 
+	log.Printf("DEBUG [AsyncEventBus]: Publishing event %s, handlers: %d", evt.EventType(), len(handlers))
+
 	if !exists || len(handlers) == 0 {
-		// No handlers registered, silently continue
+		log.Printf("WARNING [AsyncEventBus]: No handlers registered for event %s", evt.EventType())
 		return nil
 	}
 
@@ -118,8 +120,10 @@ func (b *AsyncEventBus) Close() {
 func (b *AsyncEventBus) publishToHandler(ctx context.Context, handler EventHandler, evt event.DomainEvent) {
 	defer b.wg.Done()
 
+	log.Printf("DEBUG [AsyncEventBus]: Handling event %s", evt.EventType())
+	
 	if err := handler.Handle(ctx, evt); err != nil {
-		log.Printf("Error handling event %s: %v", evt.EventType(), err)
+		log.Printf("ERROR [AsyncEventBus]: Error handling event %s: %v", evt.EventType(), err)
 		
 		// Send error to channel (non-blocking)
 		select {
@@ -127,6 +131,8 @@ func (b *AsyncEventBus) publishToHandler(ctx context.Context, handler EventHandl
 		default:
 			log.Printf("Error channel full, dropping error: %v", err)
 		}
+	} else {
+		log.Printf("DEBUG [AsyncEventBus]: Successfully handled event %s", evt.EventType())
 	}
 }
 

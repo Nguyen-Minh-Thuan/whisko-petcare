@@ -20,6 +20,7 @@ type UserReadModel struct {
 	Email          string     `json:"email" bson:"email"`
 	Phone          string     `json:"phone" bson:"phone"`
 	Address        string     `json:"address" bson:"address"`
+	ImageUrl       string     `json:"image_url,omitempty" bson:"image_url,omitempty"`
 	HashedPassword string     `json:"-" bson:"hashed_password,omitempty"` // Hidden from JSON
 	Role           string     `json:"role,omitempty" bson:"role,omitempty"`
 	LastLoginAt    *time.Time `json:"last_login_at,omitempty" bson:"last_login_at,omitempty"`
@@ -33,6 +34,7 @@ type UserReadModel struct {
 // UserProjection defines operations for user read model
 type UserProjection interface {
 	GetByID(ctx context.Context, id string) (*UserReadModel, error)
+	GetByEmail(ctx context.Context, email string) (*UserReadModel, error)
 	List(ctx context.Context, limit, offset int) ([]*UserReadModel, error)
 	Search(ctx context.Context, name, email string) ([]*UserReadModel, error)
 
@@ -73,6 +75,7 @@ func (p *MongoUserProjection) GetByID(ctx context.Context, id string) (*UserRead
 		Email:          getStringFromResult(result, "email"),
 		Phone:          getStringFromResult(result, "phone"),
 		Address:        getStringFromResult(result, "address"),
+		ImageUrl:       getStringFromResult(result, "image_url"),
 		HashedPassword: getStringFromResult(result, "hashed_password"),
 		Role:           getStringFromResult(result, "role"),
 		LastLoginAt:    getTimePointerFromResult(result, "last_login_at"),

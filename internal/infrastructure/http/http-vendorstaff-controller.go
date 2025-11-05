@@ -2,8 +2,10 @@ package http
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"whisko-petcare/internal/application/command"
 	"whisko-petcare/internal/application/services"
@@ -25,10 +27,14 @@ func NewVendorStaffController(service *services.VendorStaffService) *VendorStaff
 }
 
 // CreateVendorStaff handles POST /vendor-staffs
+// This endpoint finds a user by email, creates a vendor with default or provided values, and links them
 func (c *VendorStaffController) CreateVendorStaff(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		UserID   string `json:"user_id"`
-		VendorID string `json:"vendor_id"`
+		Email         string `json:"email"`
+		VendorName    string `json:"vendor_name,omitempty"`
+		VendorEmail   string `json:"vendor_email,omitempty"`
+		VendorPhone   string `json:"vendor_phone,omitempty"`
+		VendorAddress string `json:"vendor_address,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -37,8 +43,11 @@ func (c *VendorStaffController) CreateVendorStaff(w http.ResponseWriter, r *http
 	}
 
 	cmd := command.CreateVendorStaff{
-		UserID:   req.UserID,
-		VendorID: req.VendorID,
+		Email:         req.Email,
+		VendorName:    req.VendorName,
+		VendorEmail:   req.VendorEmail,
+		VendorPhone:   req.VendorPhone,
+		VendorAddress: req.VendorAddress,
 	}
 
 	if err := c.service.CreateVendorStaff(r.Context(), &cmd); err != nil {
@@ -47,27 +56,23 @@ func (c *VendorStaffController) CreateVendorStaff(w http.ResponseWriter, r *http
 	}
 
 	responseData := map[string]interface{}{
-		"user_id":   cmd.UserID,
-		"vendor_id": cmd.VendorID,
-		"message":   "Vendor staff created successfully",
+		"email":   cmd.Email,
+		"message": "Vendor staff created successfully. A new vendor has been created and linked to the user.",
 	}
 	response.SendCreated(w, r, responseData)
 }
 
 // GetVendorStaff handles GET /vendor-staffs/{userID}/{vendorID}
 func (c *VendorStaffController) GetVendorStaff(w http.ResponseWriter, r *http.Request) {
-	// Extract user ID and vendor ID from path
-	userID := r.PathValue("userID")
-	vendorID := r.PathValue("vendorID")
-	
-	if userID == "" {
-		middleware.HandleError(w, r, errors.NewValidationError("User ID is required"))
+	// Extract user ID and vendor ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/vendor-staffs/")
+	parts := strings.Split(path, "/")
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		middleware.HandleError(w, r, errors.NewValidationError("User ID and Vendor ID are required"))
 		return
 	}
-	if vendorID == "" {
-		middleware.HandleError(w, r, errors.NewValidationError("Vendor ID is required"))
-		return
-	}
+	userID := parts[0]
+	vendorID := parts[1]
 
 	vendorStaff, err := c.service.GetVendorStaff(r.Context(), userID, vendorID)
 	if err != nil {
@@ -95,34 +100,81 @@ func (c *VendorStaffController) ListVendorStaffs(w http.ResponseWriter, r *http.
 
 // ListVendorStaffByVendor handles GET /vendors/{vendorID}/staff
 func (c *VendorStaffController) ListVendorStaffByVendor(w http.ResponseWriter, r *http.Request) {
-	// Extract vendor ID from path
-	vendorID := r.PathValue("vendorID")
+	fmt.Printf("========================================\n")
+	fmt.Printf("📋 ListVendorStaffByVendor - Request received\n")
+	fmt.Printf("   URL Path: %s\n", r.URL.Path)
+	
+	var vendorID string
+	
+	// Handle both URL patterns
+	if strings.HasPrefix(r.URL.Path, "/vendor-staffs/vendor/") {
+		// Pattern: /vendor-staffs/vendor/{vendorID}
+		vendorID = strings.TrimPrefix(r.URL.Path, "/vendor-staffs/vendor/")
+		// Remove trailing slash and anything after it (like /staff)
+		vendorID = strings.Split(vendorID, "/")[0]
+		fmt.Printf("   Pattern: /vendor-staffs/vendor/{vendorID}\n")
+	} else if strings.HasPrefix(r.URL.Path, "/vendors/") {
+		// Pattern: /vendors/{vendorID}/staff
+		path := strings.TrimPrefix(r.URL.Path, "/vendors/")
+		fmt.Printf("   After TrimPrefix: '%s'\n", path)
+		parts := strings.Split(path, "/")
+		fmt.Printf("   Split parts: %v\n", parts)
+		if len(parts) >= 1 {
+			vendorID = parts[0]
+		}
+		fmt.Printf("   Pattern: /vendors/{vendorID}/staff\n")
+	}
+	
 	if vendorID == "" {
+		fmt.Printf("❌ Invalid path - Vendor ID is required\n")
 		middleware.HandleError(w, r, errors.NewValidationError("Vendor ID is required"))
 		return
 	}
+	fmt.Printf("   Extracted vendorID: %s\n", vendorID)
 
 	// Parse query parameters
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	fmt.Printf("   Pagination: offset=%d, limit=%d\n", offset, limit)
 
+	fmt.Printf("🔄 Calling service.ListVendorStaffByVendor...\n")
 	vendorStaffs, err := c.service.ListVendorStaffByVendor(r.Context(), vendorID, offset, limit)
 	if err != nil {
+		fmt.Printf("❌ Service error: %v\n", err)
+		fmt.Printf("========================================\n")
 		middleware.HandleError(w, r, err)
 		return
 	}
 
+	fmt.Printf("✅ Found %d vendor staff records\n", len(vendorStaffs))
+	fmt.Printf("========================================\n")
 	response.SendSuccess(w, r, vendorStaffs)
 }
 
-// ListVendorStaffByUser handles GET /users/{userID}/vendor-staffs
+// ListVendorStaffByUser handles GET /users/{userID}/vendor-staffs AND GET /vendor-staffs/user/{userID}
 func (c *VendorStaffController) ListVendorStaffByUser(w http.ResponseWriter, r *http.Request) {
-	// Extract user ID from path
-	userID := r.PathValue("userID")
+	var userID string
+	
+	// Handle both URL patterns
+	if strings.HasPrefix(r.URL.Path, "/vendor-staffs/user/") {
+		// Pattern: /vendor-staffs/user/{userID}
+		userID = strings.TrimPrefix(r.URL.Path, "/vendor-staffs/user/")
+		userID = strings.TrimSuffix(userID, "/")
+	} else if strings.HasPrefix(r.URL.Path, "/users/") {
+		// Pattern: /users/{userID}/vendor-staffs
+		path := strings.TrimPrefix(r.URL.Path, "/users/")
+		parts := strings.Split(path, "/")
+		if len(parts) >= 1 {
+			userID = parts[0]
+		}
+	}
+	
 	if userID == "" {
 		middleware.HandleError(w, r, errors.NewValidationError("User ID is required"))
 		return
 	}
+	
+	fmt.Printf("📋 ListVendorStaffByUser: userID=%s, path=%s\n", userID, r.URL.Path)
 
 	// Parse query parameters
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
@@ -130,27 +182,26 @@ func (c *VendorStaffController) ListVendorStaffByUser(w http.ResponseWriter, r *
 
 	vendorStaffs, err := c.service.ListVendorStaffByUser(r.Context(), userID, offset, limit)
 	if err != nil {
+		fmt.Printf("❌ ListVendorStaffByUser error: %v\n", err)
 		middleware.HandleError(w, r, err)
 		return
 	}
-
+	
+	fmt.Printf("✅ ListVendorStaffByUser: Found %d vendor staffs for user %s\n", len(vendorStaffs), userID)
 	response.SendSuccess(w, r, vendorStaffs)
 }
 
 // DeleteVendorStaff handles DELETE /vendor-staffs/{userID}/{vendorID}
 func (c *VendorStaffController) DeleteVendorStaff(w http.ResponseWriter, r *http.Request) {
-	// Extract user ID and vendor ID from path
-	userID := r.PathValue("userID")
-	vendorID := r.PathValue("vendorID")
-	
-	if userID == "" {
-		middleware.HandleError(w, r, errors.NewValidationError("User ID is required"))
+	// Extract user ID and vendor ID from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/vendor-staffs/")
+	parts := strings.Split(path, "/")
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		middleware.HandleError(w, r, errors.NewValidationError("User ID and Vendor ID are required"))
 		return
 	}
-	if vendorID == "" {
-		middleware.HandleError(w, r, errors.NewValidationError("Vendor ID is required"))
-		return
-	}
+	userID := parts[0]
+	vendorID := parts[1]
 
 	cmd := &command.DeleteVendorStaff{
 		UserID:   userID,

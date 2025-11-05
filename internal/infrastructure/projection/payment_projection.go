@@ -63,28 +63,42 @@ func NewMongoPaymentProjection(database *mongo.Database) PaymentProjection {
 }
 
 func (p *MongoPaymentProjection) GetByID(ctx context.Context, id string) (*PaymentReadModel, error) {
+	fmt.Printf("🔍 GetByID: Looking for payment with ID: %s\n", id)
+	
 	var payment PaymentReadModel
 	err := p.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&payment)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
+			// Count total documents to help debug
+			count, _ := p.collection.CountDocuments(ctx, bson.M{})
+			fmt.Printf("❌ Payment not found (ID: %s). Total payments in collection: %d\n", id, count)
 			return nil, fmt.Errorf("payment not found")
 		}
+		fmt.Printf("❌ Error querying payment: %v\n", err)
 		return nil, fmt.Errorf("failed to get payment: %w", err)
 	}
 
+	fmt.Printf("✅ Payment found: %s (Status: %s)\n", payment.ID, payment.Status)
 	return &payment, nil
 }
 
 func (p *MongoPaymentProjection) GetByOrderCode(ctx context.Context, orderCode int64) (*PaymentReadModel, error) {
+	fmt.Printf("🔍 GetByOrderCode: Looking for payment with order code: %d\n", orderCode)
+	
 	var payment PaymentReadModel
 	err := p.collection.FindOne(ctx, bson.M{"order_code": orderCode}).Decode(&payment)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
+			// Count total documents to help debug
+			count, _ := p.collection.CountDocuments(ctx, bson.M{})
+			fmt.Printf("❌ Payment not found (Order Code: %d). Total payments in collection: %d\n", orderCode, count)
 			return nil, fmt.Errorf("payment not found")
 		}
+		fmt.Printf("❌ Error querying payment: %v\n", err)
 		return nil, fmt.Errorf("failed to get payment: %w", err)
 	}
 
+	fmt.Printf("✅ Payment found: %s (Order Code: %d, Status: %s)\n", payment.ID, payment.OrderCode, payment.Status)
 	return &payment, nil
 }
 
@@ -130,6 +144,15 @@ func (p *MongoPaymentProjection) ListByStatus(ctx context.Context, status string
 
 // Event handlers
 func (p *MongoPaymentProjection) HandlePaymentCreated(ctx context.Context, evt *event.PaymentCreated) error {
+	fmt.Printf("========================================\n")
+	fmt.Printf("DEBUG: HandlePaymentCreated called\n")
+	fmt.Printf("  Payment ID: %s\n", evt.PaymentID)
+	fmt.Printf("  Order Code: %d\n", evt.OrderCode)
+	fmt.Printf("  User ID: %s\n", evt.UserID)
+	fmt.Printf("  Amount: %d\n", evt.Amount)
+	fmt.Printf("  Status: %s\n", evt.Status)
+	fmt.Printf("========================================\n")
+	
 	items := make([]PaymentItemReadModel, len(evt.Items))
 	for i, item := range evt.Items {
 		items[i] = PaymentItemReadModel{
@@ -154,11 +177,20 @@ func (p *MongoPaymentProjection) HandlePaymentCreated(ctx context.Context, evt *
 		UpdatedAt:   evt.Timestamp,
 	}
 
-	_, err := p.collection.InsertOne(ctx, payment)
+	fmt.Printf("DEBUG: Attempting to insert into payments_read collection\n")
+	fmt.Printf("  Collection: %s\n", p.collection.Name())
+	fmt.Printf("  Database: %s\n", p.collection.Database().Name())
+	
+	result, err := p.collection.InsertOne(ctx, payment)
 	if err != nil {
+		fmt.Printf("❌ ERROR: Failed to insert payment to read model: %v\n", err)
+		fmt.Printf("========================================\n")
 		return fmt.Errorf("failed to insert payment: %w", err)
 	}
 
+	fmt.Printf("✅ SUCCESS: Inserted payment to read model\n")
+	fmt.Printf("  Inserted ID: %v\n", result.InsertedID)
+	fmt.Printf("========================================\n")
 	return nil
 }
 

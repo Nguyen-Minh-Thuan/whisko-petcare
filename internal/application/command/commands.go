@@ -289,9 +289,13 @@ type CancelSchedule struct {
 // ==================== VendorStaff Commands ====================
 
 // CreateVendorStaff represents a command to create a new vendor staff
+// This command will find user by email, create a vendor with default/provided values, and link them
 type CreateVendorStaff struct {
-	UserID   string `json:"user_id"`
-	VendorID string `json:"vendor_id"`
+	Email         string `json:"email"`           // User email to find/link
+	VendorName    string `json:"vendor_name"`     // Vendor name (optional, defaults to user name + "'s Vendor")
+	VendorEmail   string `json:"vendor_email"`    // Vendor email (optional, defaults to user email)
+	VendorPhone   string `json:"vendor_phone"`    // Vendor phone (optional, defaults to user phone)
+	VendorAddress string `json:"vendor_address"`  // Vendor address (optional, defaults to user address)
 }
 
 // DeleteVendorStaff represents a command to delete a vendor staff

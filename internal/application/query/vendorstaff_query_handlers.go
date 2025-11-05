@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"whisko-petcare/internal/infrastructure/projection"
 	"whisko-petcare/pkg/errors"
 )
 
@@ -179,23 +180,38 @@ func (h *GetVendorStaffProfileHandler) Handle(ctx context.Context, userID string
 	var profiles []interface{}
 	
 	for _, staffInterface := range vendorStaffs {
-		staff := staffInterface.(map[string]interface{})
-		vendorID, ok := staff["vendor_id"].(string)
+		// Cast to VendorStaffReadModel (not map)
+		staff, ok := staffInterface.(projection.VendorStaffReadModel)
 		if !ok {
 			continue
 		}
 
 		// Get vendor information
-		vendor, err := h.vendorProjection.GetByID(ctx, vendorID)
+		vendorInterface, err := h.vendorProjection.GetByID(ctx, staff.VendorID)
 		if err != nil {
 			// If vendor not found, skip this entry but don't fail entirely
 			continue
 		}
 
+		// Cast vendor to VendorReadModel (it's returned as a value, not pointer)
+		vendor, ok := vendorInterface.(projection.VendorReadModel)
+		if !ok {
+			continue
+		}
+
 		// Combine staff and vendor information
 		profile := map[string]interface{}{
-			"vendor_staff": staff,
-			"vendor":       vendor,
+			"staff_id":       staff.ID,
+			"vendor_id":      staff.VendorID,
+			"user_id":        staff.UserID,
+			"role":           staff.Role,
+			"is_active":      staff.IsActive,
+			"created_at":     staff.CreatedAt,
+			"updated_at":     staff.UpdatedAt,
+			"vendor_name":    vendor.Name,
+			"vendor_email":   vendor.Email,
+			"vendor_phone":   vendor.Phone,
+			"vendor_address": vendor.Address,
 		}
 		profiles = append(profiles, profile)
 	}

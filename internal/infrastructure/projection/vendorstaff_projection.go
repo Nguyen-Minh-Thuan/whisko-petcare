@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"whisko-petcare/internal/domain/event"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -16,6 +17,7 @@ type VendorStaffReadModel struct {
 	ID        string    `bson:"_id" json:"id"`
 	UserID    string    `bson:"user_id" json:"user_id"`
 	VendorID  string    `bson:"vendor_id" json:"vendor_id"`
+	Role      string    `bson:"role" json:"role"` // owner, manager, or staff
 	IsActive  bool      `bson:"is_active" json:"is_active"`
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
@@ -80,48 +82,90 @@ func (p *MongoVendorStaffProjection) GetByID(ctx context.Context, userID, vendor
 
 // GetByVendorID retrieves vendor staffs by vendor ID with pagination
 func (p *MongoVendorStaffProjection) GetByVendorID(ctx context.Context, vendorID string, offset, limit int) ([]interface{}, error) {
+	fmt.Printf("========================================\n")
+	fmt.Printf("🔍 MongoDB Query: GetByVendorID\n")
+	fmt.Printf("   Collection: %s\n", p.collection.Name())
+	fmt.Printf("   Database: %s\n", p.collection.Database().Name())
+	fmt.Printf("   VendorID: %s\n", vendorID)
+	fmt.Printf("   Offset: %d, Limit: %d\n", offset, limit)
+	fmt.Printf("   Filter: {vendor_id: '%s', is_active: true}\n", vendorID)
+	
+	// First, check total count in collection
+	totalCount, _ := p.collection.CountDocuments(ctx, bson.M{})
+	fmt.Printf("   Total documents in collection: %d\n", totalCount)
+	
+	// Count matching documents
+	matchCount, _ := p.collection.CountDocuments(ctx, bson.M{"vendor_id": vendorID})
+	fmt.Printf("   Documents with vendor_id='%s': %d\n", vendorID, matchCount)
+	
+	// Count matching documents with is_active
+	activeCount, _ := p.collection.CountDocuments(ctx, bson.M{
+		"vendor_id": vendorID,
+		"is_active": true,
+	})
+	fmt.Printf("   Documents with vendor_id='%s' AND is_active=true: %d\n", vendorID, activeCount)
+	
 	opts := options.Find().
 		SetSkip(int64(offset)).
 		SetLimit(int64(limit)).
 		SetSort(bson.D{{Key: "created_at", Value: -1}})
 	
-	cursor, err := p.collection.Find(ctx, bson.M{
+	filter := bson.M{
 		"vendor_id": vendorID,
 		"is_active": true,
-	}, opts)
+	}
+	
+	cursor, err := p.collection.Find(ctx, filter, opts)
 	if err != nil {
+		fmt.Printf("❌ MongoDB Find Error: %v\n", err)
+		fmt.Printf("========================================\n")
 		return nil, err
 	}
 	defer cursor.Close(ctx)
 	
 	var vendorStaffs []interface{}
+	recordCount := 0
 	for cursor.Next(ctx) {
+		recordCount++
 		var vendorStaff VendorStaffReadModel
 		if err := cursor.Decode(&vendorStaff); err != nil {
+			fmt.Printf("❌ MongoDB Decode Error (record %d): %v\n", recordCount, err)
 			return nil, err
 		}
+		fmt.Printf("   Record %d: ID=%s, UserID=%s, VendorID=%s, Role=%s, IsActive=%v\n", 
+			recordCount, vendorStaff.ID, vendorStaff.UserID, vendorStaff.VendorID, vendorStaff.Role, vendorStaff.IsActive)
 		vendorStaffs = append(vendorStaffs, vendorStaff)
 	}
 	
 	if err := cursor.Err(); err != nil {
+		fmt.Printf("❌ MongoDB Cursor Error: %v\n", err)
+		fmt.Printf("========================================\n")
 		return nil, err
 	}
 	
+	fmt.Printf("✅ Successfully retrieved %d vendor staff records\n", len(vendorStaffs))
+	fmt.Printf("========================================\n")
 	return vendorStaffs, nil
 }
 
 // GetByUserID retrieves vendor staffs by user ID with pagination
 func (p *MongoVendorStaffProjection) GetByUserID(ctx context.Context, userID string, offset, limit int) ([]interface{}, error) {
+	fmt.Printf("🔍 MongoDB Query: GetByUserID - userID=%s, offset=%d, limit=%d\n", userID, offset, limit)
+	
 	opts := options.Find().
 		SetSkip(int64(offset)).
 		SetLimit(int64(limit)).
 		SetSort(bson.D{{Key: "created_at", Value: -1}})
 	
-	cursor, err := p.collection.Find(ctx, bson.M{
+	filter := bson.M{
 		"user_id":   userID,
 		"is_active": true,
-	}, opts)
+	}
+	fmt.Printf("   Filter: %+v\n", filter)
+	
+	cursor, err := p.collection.Find(ctx, filter, opts)
 	if err != nil {
+		fmt.Printf("❌ MongoDB Find error: %v\n", err)
 		return nil, err
 	}
 	defer cursor.Close(ctx)
@@ -130,15 +174,18 @@ func (p *MongoVendorStaffProjection) GetByUserID(ctx context.Context, userID str
 	for cursor.Next(ctx) {
 		var vendorStaff VendorStaffReadModel
 		if err := cursor.Decode(&vendorStaff); err != nil {
+			fmt.Printf("❌ MongoDB Decode error: %v\n", err)
 			return nil, err
 		}
 		vendorStaffs = append(vendorStaffs, vendorStaff)
 	}
 	
 	if err := cursor.Err(); err != nil {
+		fmt.Printf("❌ MongoDB Cursor error: %v\n", err)
 		return nil, err
 	}
 	
+	fmt.Printf("✅ MongoDB Query Result: Found %d vendor staffs for user_id=%s\n", len(vendorStaffs), userID)
 	return vendorStaffs, nil
 }
 
@@ -179,6 +226,7 @@ func (p *MongoVendorStaffProjection) HandleVendorStaffCreated(ctx context.Contex
 		ID:        compositeID,
 		UserID:    evt.UserID,
 		VendorID:  evt.VendorID,
+		Role:      evt.Role,
 		IsActive:  true,
 		CreatedAt: evt.Timestamp,
 		UpdatedAt: evt.Timestamp,
@@ -187,6 +235,29 @@ func (p *MongoVendorStaffProjection) HandleVendorStaffCreated(ctx context.Contex
 	_, err := p.collection.InsertOne(ctx, vendorStaff)
 	if err != nil {
 		return fmt.Errorf("failed to insert vendor staff: %w", err)
+	}
+	
+	return nil
+}
+
+// HandleVendorStaffRoleUpdated handles VendorStaffRoleUpdated event
+func (p *MongoVendorStaffProjection) HandleVendorStaffRoleUpdated(ctx context.Context, evt event.VendorStaffRoleUpdated) error {
+	compositeID := evt.UserID + "-" + evt.VendorID
+	
+	update := bson.M{
+		"$set": bson.M{
+			"role":       evt.NewRole,
+			"updated_at": evt.Timestamp,
+		},
+	}
+	
+	_, err := p.collection.UpdateOne(
+		ctx,
+		bson.M{"_id": compositeID},
+		update,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update vendor staff role: %w", err)
 	}
 	
 	return nil

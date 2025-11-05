@@ -269,6 +269,11 @@ func main() {
 			return vendorStaffProjection.HandleVendorStaffCreated(ctx, *e.(*event.VendorStaffCreated))
 		}))
 
+	eventBus.Subscribe("VendorStaffRoleUpdated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return vendorStaffProjection.HandleVendorStaffRoleUpdated(ctx, *e.(*event.VendorStaffRoleUpdated))
+		}))
+
 	eventBus.Subscribe("VendorStaffDeleted", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
 			return vendorStaffProjection.HandleVendorStaffDeleted(ctx, *e.(*event.VendorStaffDeleted))
@@ -305,6 +310,7 @@ func main() {
 	createPetHandler := command.NewCreatePetWithUoWHandler(uowFactory, eventBus)
 	updatePetHandler := command.NewUpdatePetWithUoWHandler(uowFactory, eventBus)
 	deletePetHandler := command.NewDeletePetWithUoWHandler(uowFactory, eventBus)
+	updatePetImageHandler := command.NewUpdatePetImageWithUoWHandler(uowFactory, eventBus)
 	addPetVaccinationHandler := command.NewAddPetVaccinationWithUoWHandler(uowFactory, eventBus)
 	addPetMedicalRecordHandler := command.NewAddPetMedicalRecordWithUoWHandler(uowFactory, eventBus)
 	addPetAllergyHandler := command.NewAddPetAllergyWithUoWHandler(uowFactory, eventBus)
@@ -319,6 +325,7 @@ func main() {
 	createVendorHandler := command.NewCreateVendorWithUoWHandler(uowFactory, eventBus)
 	updateVendorHandler := command.NewUpdateVendorWithUoWHandler(uowFactory, eventBus)
 	deleteVendorHandler := command.NewDeleteVendorWithUoWHandler(uowFactory, eventBus)
+	updateVendorImageHandler := command.NewUpdateVendorImageWithUoWHandler(uowFactory, eventBus)
 
 	// Initialize vendor query handlers
 	getVendorHandler := query.NewGetVendorHandler(vendorProjection)
@@ -328,6 +335,7 @@ func main() {
 	createServiceHandler := command.NewCreateServiceWithUoWHandler(uowFactory, eventBus)
 	updateServiceHandler := command.NewUpdateServiceWithUoWHandler(uowFactory, eventBus)
 	deleteServiceHandler := command.NewDeleteServiceWithUoWHandler(uowFactory, eventBus)
+	updateServiceImageHandler := command.NewUpdateServiceImageWithUoWHandler(uowFactory, eventBus)
 
 	// Initialize service query handlers
 	getServiceHandler := query.NewGetServiceHandler(serviceProjection)
@@ -346,7 +354,7 @@ func main() {
 	listSchedulesHandler := query.NewListSchedulesHandler(scheduleProjection)
 
 	// Initialize vendor staff command handlers
-	createVendorStaffHandler := command.NewCreateVendorStaffWithUoWHandler(uowFactory, eventBus)
+	createVendorStaffHandler := command.NewCreateVendorStaffWithUoWHandler(uowFactory, eventBus, userProjection)
 	deleteVendorStaffHandler := command.NewDeleteVendorStaffWithUoWHandler(uowFactory, eventBus)
 
 	// Initialize vendor staff query handlers
@@ -372,6 +380,7 @@ func main() {
 		createPetHandler,
 		updatePetHandler,
 		deletePetHandler,
+		updatePetImageHandler,
 		addPetVaccinationHandler,
 		addPetMedicalRecordHandler,
 		addPetAllergyHandler,
@@ -385,6 +394,7 @@ func main() {
 		createVendorHandler,
 		updateVendorHandler,
 		deleteVendorHandler,
+		updateVendorImageHandler,
 		getVendorHandler,
 		listVendorsHandler,
 	)
@@ -393,6 +403,7 @@ func main() {
 		createServiceHandler,
 		updateServiceHandler,
 		deleteServiceHandler,
+		updateServiceImageHandler,
 		getServiceHandler,
 		listVendorServicesHandler,
 		listServicesHandler,
@@ -497,58 +508,21 @@ func main() {
 		}
 	})
 
-	// Payment routes
-	mux.HandleFunc("/payments", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			paymentController.CreatePayment(w, r)
-		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	})
-
-	mux.HandleFunc("/payments/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			if strings.Contains(r.URL.Path, "/cancel") {
-				// This is a cancel request
-				paymentController.CancelPayment(w, r)
-			} else {
-				// This is a get request
-				paymentController.GetPayment(w, r)
-			}
-		case http.MethodPut:
-			if strings.Contains(r.URL.Path, "/cancel") {
-				paymentController.CancelPayment(w, r)
-			} else {
-				w.WriteHeader(http.StatusMethodNotAllowed)
-			}
-		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	})
-
-	// Payment special routes
-	mux.HandleFunc("/payments/order/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			paymentController.GetPaymentByOrderCode(w, r)
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	})
-
-	mux.HandleFunc("/payments/user/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			paymentController.ListUserPayments(w, r)
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	})
-
-	// PayOS webhook and return URLs
+	// Payment routes - Order matters! More specific routes first
+	
+	// PayOS webhook and return URLs (most specific first)
 	mux.HandleFunc("/payments/webhook", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			paymentController.WebhookHandler(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Manual payment status check endpoint (for local development without webhook)
+	mux.HandleFunc("/payments/check/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			paymentController.CheckAndUpdatePaymentStatus(w, r)
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
@@ -570,6 +544,58 @@ func main() {
 		}
 	})
 
+	// Payment base route (POST only - exact match)
+	mux.HandleFunc("/payments", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/payments" {
+			// If path is not exactly "/payments", let it fall through to /payments/ handler
+			http.NotFound(w, r)
+			return
+		}
+		switch r.Method {
+		case http.MethodPost:
+			paymentController.CreatePayment(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Payment query routes (specific paths) - These must come AFTER /payments base route
+	// Go's ServeMux will match the longest pattern first
+	mux.HandleFunc("/payments/order/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			paymentController.GetPaymentByOrderCode(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	mux.HandleFunc("/payments/user/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			paymentController.ListUserPayments(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Payment by ID routes (with trailing slash - catches /payments/{id})
+	// This will match anything like /payments/xxx that wasn't caught by more specific routes
+	mux.HandleFunc("/payments/", func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+
+		switch r.Method {
+		case http.MethodGet:
+			paymentController.GetPayment(w, r)
+		case http.MethodPut:
+			if strings.HasSuffix(path, "/cancel") {
+				paymentController.CancelPayment(w, r)
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
 	// Pet routes
 	mux.HandleFunc("/pets", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -586,11 +612,16 @@ func main() {
 		path := strings.TrimPrefix(r.URL.Path, "/pets/")
 		parts := strings.Split(path, "/")
 		
-		// Check for health endpoints: /pets/{id}/vaccinations, /pets/{id}/medical-records, /pets/{id}/allergies
+		// Check for health endpoints: /pets/{id}/vaccinations, /pets/{id}/medical-records, /pets/{id}/allergies, /pets/{id}/image
 		if len(parts) >= 2 {
 			resource := parts[1]
 			
 			switch resource {
+			case "image":
+				if r.Method == http.MethodPut {
+					petController.UpdatePetImage(w, r)
+					return
+				}
 			case "vaccinations":
 				if r.Method == http.MethodPost {
 					petController.AddPetVaccination(w, r)
@@ -640,6 +671,11 @@ func main() {
 	})
 
 	mux.HandleFunc("/vendors/", func(w http.ResponseWriter, r *http.Request) {
+		// Check for /vendors/{vendorID}/image
+		if strings.Contains(r.URL.Path, "/image") && r.Method == http.MethodPut {
+			vendorController.UpdateVendorImage(w, r)
+			return
+		}
 		// Check for /vendors/{vendorID}/services
 		if strings.Contains(r.URL.Path, "/services") && r.Method == http.MethodGet {
 			serviceController.ListVendorServices(w, r)
@@ -681,6 +717,12 @@ func main() {
 	})
 
 	mux.HandleFunc("/services/", func(w http.ResponseWriter, r *http.Request) {
+		// Check for /services/{id}/image
+		if strings.Contains(r.URL.Path, "/image") && r.Method == http.MethodPut {
+			serviceController.UpdateServiceImage(w, r)
+			return
+		}
+		
 		switch r.Method {
 		case http.MethodGet:
 			serviceController.GetService(w, r)
@@ -743,6 +785,18 @@ func main() {
 	})
 
 	mux.HandleFunc("/vendor-staffs/", func(w http.ResponseWriter, r *http.Request) {
+		// Check for /vendor-staffs/user/{userID} pattern
+		if strings.Contains(r.URL.Path, "/vendor-staffs/user/") && r.Method == http.MethodGet {
+			vendorStaffController.ListVendorStaffByUser(w, r)
+			return
+		}
+		
+		// Check for /vendor-staffs/vendor/{vendorID} pattern
+		if strings.Contains(r.URL.Path, "/vendor-staffs/vendor/") && r.Method == http.MethodGet {
+			vendorStaffController.ListVendorStaffByVendor(w, r)
+			return
+		}
+		
 		switch r.Method {
 		case http.MethodGet:
 			vendorStaffController.GetVendorStaff(w, r)
@@ -783,6 +837,15 @@ func main() {
 	mux.HandleFunc("/auth/change-password", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			authController.ChangePassword(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Get current user from token (requires authentication)
+	mux.HandleFunc("/auth/me", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			middleware.JWTAuthMiddleware(jwtManager)(http.HandlerFunc(authController.GetCurrentUser)).ServeHTTP(w, r)
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}

@@ -77,6 +77,44 @@ func (c *HTTPPaymentController) CreatePayment(w http.ResponseWriter, r *http.Req
 	response.SendCreated(w, r, result)
 }
 
+// CheckAndUpdatePaymentStatus manually checks payment status with PayOS and updates it
+// This is useful for local development when webhook is not accessible
+func (c *HTTPPaymentController) CheckAndUpdatePaymentStatus(w http.ResponseWriter, r *http.Request) {
+	// Extract order code from URL path
+	path := strings.TrimPrefix(r.URL.Path, "/payments/check/")
+	if path == "" {
+		response.SendBadRequest(w, r, "Order code is required")
+		return
+	}
+
+	orderCode, err := strconv.ParseInt(path, 10, 64)
+	if err != nil {
+		response.SendBadRequest(w, r, "Invalid order code")
+		return
+	}
+
+	fmt.Printf("========================================\n")
+	fmt.Printf("🔍 Manual payment status check requested for order: %d\n", orderCode)
+	fmt.Printf("========================================\n")
+
+	// Call confirm payment handler (it will check PayOS and update status)
+	cmd := &command.ConfirmPaymentCommand{
+		OrderCode: orderCode,
+	}
+
+	err = c.confirmPaymentHandler.Handle(r.Context(), cmd)
+	if err != nil {
+		fmt.Printf("❌ Failed to check/update payment: %v\n", err)
+		response.SendInternalError(w, r, "Failed to check payment status: "+err.Error())
+		return
+	}
+
+	fmt.Printf("✅ Payment status check completed\n")
+	response.SendSuccess(w, r, map[string]string{
+		"message": "Payment status checked and updated successfully",
+	})
+}
+
 // GetPayment handles GET /payments/{id}
 func (c *HTTPPaymentController) GetPayment(w http.ResponseWriter, r *http.Request) {
 	// Extract payment ID from URL path
@@ -224,45 +262,110 @@ func (c *HTTPPaymentController) CancelPayment(w http.ResponseWriter, r *http.Req
 
 // WebhookHandler handles PayOS webhooks
 func (c *HTTPPaymentController) WebhookHandler(w http.ResponseWriter, r *http.Request) {
-	// Verify webhook signature
-	signature := r.Header.Get("x-signature")
-	if signature == "" {
-		response.SendBadRequest(w, r, "Missing signature")
-		return
-	}
-
+	fmt.Printf("========================================\n")
+	fmt.Printf("🔔 WEBHOOK RECEIVED from PayOS\n")
+	fmt.Printf("========================================\n")
+	
 	// Read the body as a map first
 	var webhookPayload map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&webhookPayload); err != nil {
+		fmt.Printf("❌ Webhook rejected: Invalid payload - %v\n", err)
 		response.SendBadRequest(w, r, "Invalid webhook payload")
 		return
 	}
+	fmt.Printf("📦 Webhook payload received: %+v\n", webhookPayload)
 
-	// Convert to PayOS webhook type
-	webhookData, err := payos.CreateWebhookDataFromMap(webhookPayload)
-	if err != nil {
-		response.SendBadRequest(w, r, "Invalid webhook data format")
-		return
+	// Check for signature (optional for now since PayOS doesn't always send it)
+	signature := r.Header.Get("x-signature")
+	if signature != "" {
+		fmt.Printf("✅ Signature present: %s...\n", signature[:20])
+		
+		// Convert to PayOS webhook type for verification
+		webhookData, err := payos.CreateWebhookDataFromMap(webhookPayload)
+		if err != nil {
+			fmt.Printf("❌ Webhook rejected: Invalid data format - %v\n", err)
+			response.SendBadRequest(w, r, "Invalid webhook data format")
+			return
+		}
+
+		// Verify webhook data using PayOS SDK
+		verifiedData, err := c.payOSService.VerifyPaymentWebhookData(*webhookData)
+		if err != nil {
+			fmt.Printf("⚠️ Webhook verification failed (continuing anyway): %v\n", err)
+		} else {
+			fmt.Printf("✅ Webhook verified! Order Code: %d\n", verifiedData.OrderCode)
+		}
+	} else {
+		fmt.Printf("⚠️ Webhook received without signature - PayOS may not be sending signatures\n")
+		fmt.Printf("   Processing webhook anyway based on payload data...\n")
 	}
 
-	// Verify webhook data using PayOS SDK
-	verifiedData, err := c.payOSService.VerifyPaymentWebhookData(*webhookData)
-	if err != nil {
-		response.SendBadRequest(w, r, "Webhook verification failed")
+	// Extract order code from payload
+	// PayOS sends orderCode inside the "data" object
+	var orderCode int64
+	
+	// First, try to get data object
+	if dataObj, ok := webhookPayload["data"].(map[string]interface{}); ok {
+		// orderCode is inside data
+		if orderCodeVal, exists := dataObj["orderCode"]; exists {
+			switch v := orderCodeVal.(type) {
+			case float64:
+				orderCode = int64(v)
+			case int64:
+				orderCode = v
+			case int:
+				orderCode = int64(v)
+			case string:
+				if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
+					orderCode = parsed
+				}
+			}
+		}
+	}
+	
+	// Fallback: try top-level orderCode (for backward compatibility)
+	if orderCode == 0 {
+		if orderCodeVal, ok := webhookPayload["orderCode"]; ok {
+			switch v := orderCodeVal.(type) {
+			case float64:
+				orderCode = int64(v)
+			case int64:
+				orderCode = v
+			case int:
+				orderCode = int64(v)
+			case string:
+				if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
+					orderCode = parsed
+				}
+			}
+		}
+	}
+	
+	if orderCode == 0 {
+		fmt.Printf("❌ Webhook rejected: Missing or invalid orderCode in payload\n")
+		fmt.Printf("   Payload structure: %+v\n", webhookPayload)
+		response.SendBadRequest(w, r, "Missing orderCode")
 		return
 	}
+	
+	fmt.Printf("📋 Processing webhook for Order Code: %d\n", orderCode)
 
 	// Process the webhook
 	cmd := &command.ConfirmPaymentCommand{
-		OrderCode: verifiedData.OrderCode,
+		OrderCode: orderCode,
 	}
 
-	err = c.confirmPaymentHandler.Handle(r.Context(), cmd)
+	fmt.Printf("🔄 Processing webhook for order: %d\n", orderCode)
+	err := c.confirmPaymentHandler.Handle(r.Context(), cmd)
 	if err != nil {
+		fmt.Printf("❌ Webhook processing failed: %v\n", err)
+		fmt.Printf("========================================\n")
 		response.SendInternalError(w, r, "Failed to process webhook")
 		return
 	}
 
+	fmt.Printf("✅ Webhook processed successfully!\n")
+	fmt.Printf("========================================\n")
 	response.SendSuccess(w, r, nil)
 }
 

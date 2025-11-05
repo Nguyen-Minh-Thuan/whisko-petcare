@@ -9,11 +9,12 @@ import (
 
 // VendorService handles vendor operations
 type VendorService struct {
-	createVendorHandler *command.CreateVendorWithUoWHandler
-	updateVendorHandler *command.UpdateVendorWithUoWHandler
-	deleteVendorHandler *command.DeleteVendorWithUoWHandler
-	getVendorHandler    *query.GetVendorHandler
-	listVendorsHandler  *query.ListVendorsHandler
+	createVendorHandler       *command.CreateVendorWithUoWHandler
+	updateVendorHandler       *command.UpdateVendorWithUoWHandler
+	deleteVendorHandler       *command.DeleteVendorWithUoWHandler
+	updateVendorImageHandler  *command.UpdateVendorImageWithUoWHandler
+	getVendorHandler          *query.GetVendorHandler
+	listVendorsHandler        *query.ListVendorsHandler
 }
 
 // NewVendorService creates a new vendor service
@@ -21,15 +22,17 @@ func NewVendorService(
 	createVendorHandler *command.CreateVendorWithUoWHandler,
 	updateVendorHandler *command.UpdateVendorWithUoWHandler,
 	deleteVendorHandler *command.DeleteVendorWithUoWHandler,
+	updateVendorImageHandler *command.UpdateVendorImageWithUoWHandler,
 	getVendorHandler *query.GetVendorHandler,
 	listVendorsHandler *query.ListVendorsHandler,
 ) *VendorService {
 	return &VendorService{
-		createVendorHandler: createVendorHandler,
-		updateVendorHandler: updateVendorHandler,
-		deleteVendorHandler: deleteVendorHandler,
-		getVendorHandler:    getVendorHandler,
-		listVendorsHandler:  listVendorsHandler,
+		createVendorHandler:      createVendorHandler,
+		updateVendorHandler:      updateVendorHandler,
+		deleteVendorHandler:      deleteVendorHandler,
+		updateVendorImageHandler: updateVendorImageHandler,
+		getVendorHandler:         getVendorHandler,
+		listVendorsHandler:       listVendorsHandler,
 	}
 }
 
@@ -56,4 +59,9 @@ func (s *VendorService) GetVendor(ctx context.Context, vendorID string) (interfa
 // ListVendors retrieves all vendors with pagination
 func (s *VendorService) ListVendors(ctx context.Context, offset, limit int) ([]interface{}, error) {
 	return s.listVendorsHandler.Handle(ctx, offset, limit)
+}
+
+// UpdateVendorImage updates a vendor's image URL
+func (s *VendorService) UpdateVendorImage(ctx context.Context, cmd command.UpdateVendorImage) error {
+	return s.updateVendorImageHandler.Handle(ctx, &cmd)
 }
