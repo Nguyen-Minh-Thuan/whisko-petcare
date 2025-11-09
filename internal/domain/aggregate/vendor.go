@@ -80,6 +80,24 @@ func NewVendorFromHistory(events []event.DomainEvent) (*Vendor, error) {
 	return vendor, nil
 }
 
+// ReconstructVendor rebuilds a Vendor aggregate from database state WITHOUT raising events
+func ReconstructVendor(id, name, email, phone, address, imageUrl string,
+	version int, createdAt, updatedAt time.Time, isActive bool) *Vendor {
+	return &Vendor{
+		id:                id,
+		name:              name,
+		email:             email,
+		phone:             phone,
+		address:           address,
+		imageUrl:          imageUrl,
+		version:           version,
+		createdAt:         createdAt,
+		updatedAt:         updatedAt,
+		isActive:          isActive,
+		uncommittedEvents: nil, // No events when reconstructing from DB
+	}
+}
+
 func (v *Vendor) UpdateProfile(name, email, phone, address string) error {
 	if name == "" {
 		return fmt.Errorf("name cannot be empty")

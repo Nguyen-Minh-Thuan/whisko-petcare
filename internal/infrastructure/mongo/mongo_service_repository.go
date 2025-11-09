@@ -128,21 +128,21 @@ func (r *MongoServiceRepository) GetByID(ctx context.Context, id string) (*aggre
 	// Extract tags
 	tags := getServiceTags(result, "tags")
 
-	// Reconstruct service from document
-	service, err := aggregate.NewService(
+	// Reconstruct service from database state WITHOUT raising events
+	service := aggregate.ReconstructService(
+		getServiceString(result, "_id"),
 		getServiceString(result, "vendor_id"),
 		getServiceString(result, "name"),
 		getServiceString(result, "description"),
+		getServiceString(result, "image_url"),
 		getServiceInt(result, "price"),
 		duration,
 		tags,
+		getServiceInt(result, "version"),
+		getServiceTime(result, "created_at"),
+		getServiceTime(result, "updated_at"),
+		getServiceBool(result, "is_active"),
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to reconstruct service: %w", err)
-	}
-
-	// Set version from database
-	service.SetVersion(getServiceInt(result, "version"))
 
 	return service, nil
 }
@@ -167,6 +167,20 @@ func getServiceInt(doc bson.M, key string) int {
 		return int(val)
 	}
 	return 0
+}
+
+func getServiceBool(doc bson.M, key string) bool {
+	if val, ok := doc[key].(bool); ok {
+		return val
+	}
+	return false
+}
+
+func getServiceTime(doc bson.M, key string) time.Time {
+	if val, ok := doc[key].(time.Time); ok {
+		return val
+	}
+	return time.Time{}
 }
 
 // getServiceFloat64 safely extracts a float64 from a bson.M document

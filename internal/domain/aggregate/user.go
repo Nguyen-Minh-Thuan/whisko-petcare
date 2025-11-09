@@ -161,6 +161,26 @@ func NewUserFromHistory(events []event.DomainEvent) (*User, error) {
 	return user, nil
 }
 
+// ReconstructUser rebuilds a User aggregate from database state WITHOUT raising events
+func ReconstructUser(id, name, email, phone, address, hashedPassword string, role UserRole, imageUrl string,
+	version int, createdAt, updatedAt time.Time, isActive bool) *User {
+	return &User{
+		id:                id,
+		name:              name,
+		email:             email,
+		phone:             phone,
+		address:           address,
+		hashedPassword:    hashedPassword,
+		role:              role,
+		imageUrl:          imageUrl,
+		version:           version,
+		createdAt:         createdAt,
+		updatedAt:         updatedAt,
+		isActive:          isActive,
+		uncommittedEvents: nil, // No events when reconstructing from DB
+	}
+}
+
 func (u *User) UpdateProfile(name, email string) error {
 	if name == "" {
 		return fmt.Errorf("name cannot be empty")

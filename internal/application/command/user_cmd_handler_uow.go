@@ -50,6 +50,10 @@ func (h *CreateUserWithUoWHandler) Handle(ctx context.Context, cmd *CreateUser) 
 
 	// Get events BEFORE saving (Save() will clear them)
 	events := user.GetUncommittedEvents()
+	fmt.Printf("🔍 CreateUser: Got %d uncommitted events before save\n", len(events))
+	for i, evt := range events {
+		fmt.Printf("  Event %d: Type=%s\n", i+1, evt.EventType())
+	}
 
 	// Save user using repository from unit of work
 	userRepo := uow.UserRepository()
@@ -63,6 +67,7 @@ func (h *CreateUserWithUoWHandler) Handle(ctx context.Context, cmd *CreateUser) 
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	fmt.Printf("📤 CreateUser: Publishing %d events...\n", len(events))
 	// Publish events AFTER successful commit (eventual consistency)
 	for _, event := range events {
 		if err := h.eventBus.Publish(ctx, event); err != nil {

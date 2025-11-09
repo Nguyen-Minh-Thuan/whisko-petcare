@@ -3,6 +3,7 @@ package mongo
 import (
 	"context"
 	"fmt"
+	"time"
 	"whisko-petcare/internal/domain/aggregate"
 	"whisko-petcare/internal/domain/event"
 
@@ -118,20 +119,19 @@ func (r *MongoVendorRepository) GetByID(ctx context.Context, id string) (*aggreg
 		return nil, fmt.Errorf("failed to get vendor from MongoDB: %w", err)
 	}
 
-	// Reconstruct vendor from document
-	vendor, err := aggregate.NewVendor(
-		getVendorString(result, "_id"), // MongoDB stores as _id, not id
+	// Reconstruct vendor from database state WITHOUT raising events
+	vendor := aggregate.ReconstructVendor(
+		getVendorString(result, "_id"),
 		getVendorString(result, "name"),
 		getVendorString(result, "email"),
 		getVendorString(result, "phone"),
 		getVendorString(result, "address"),
+		getVendorString(result, "image_url"),
+		getVendorInt(result, "version"),
+		getVendorTime(result, "created_at"),
+		getVendorTime(result, "updated_at"),
+		getVendorBool(result, "is_active"),
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to reconstruct vendor: %w", err)
-	}
-
-	// Set version from database
-	vendor.SetVersion(getVendorInt(result, "version"))
 
 	return vendor, nil
 }
@@ -156,6 +156,20 @@ func getVendorInt(doc bson.M, key string) int {
 		return int(val)
 	}
 	return 0
+}
+
+func getVendorBool(doc bson.M, key string) bool {
+	if val, ok := doc[key].(bool); ok {
+		return val
+	}
+	return false
+}
+
+func getVendorTime(doc bson.M, key string) time.Time {
+	if val, ok := doc[key].(time.Time); ok {
+		return val
+	}
+	return time.Time{}
 }
 
 // SaveEvents saves events for a vendor aggregate

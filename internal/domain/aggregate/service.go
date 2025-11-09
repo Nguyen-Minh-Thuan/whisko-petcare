@@ -92,6 +92,26 @@ func NewServiceFromHistory(events []event.DomainEvent) (*Service, error) {
 	return service, nil
 }
 
+// ReconstructService rebuilds a Service aggregate from database state WITHOUT raising events
+func ReconstructService(id, vendorID, name, description, imageUrl string, price int, duration time.Duration, tags []string,
+	version int, createdAt, updatedAt time.Time, isActive bool) *Service {
+	return &Service{
+		id:                id,
+		vendorId:          vendorID,
+		name:              name,
+		description:       description,
+		price:             price,
+		duration:          duration,
+		tags:              tags,
+		imageUrl:          imageUrl,
+		version:           version,
+		createdAt:         createdAt,
+		updatedAt:         updatedAt,
+		isActive:          isActive,
+		uncommittedEvents: nil, // No events when reconstructing from DB
+	}
+}
+
 func (s *Service) UpdateService(name, description string, price int, duration time.Duration, tags []string) error {
 	if name == "" {
 		return fmt.Errorf("name cannot be empty")

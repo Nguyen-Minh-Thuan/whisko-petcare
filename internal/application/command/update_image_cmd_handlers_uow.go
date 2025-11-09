@@ -47,6 +47,10 @@ func (h *UpdateUserImageWithUoWHandler) Handle(ctx context.Context, cmd *UpdateU
 
 	// Get events BEFORE saving (Save() will clear them)
 	events := user.GetUncommittedEvents()
+	fmt.Printf("🔍 UpdateUserImage: Got %d uncommitted events before save\n", len(events))
+	for i, evt := range events {
+		fmt.Printf("  Event %d: Type=%s\n", i+1, evt.EventType())
+	}
 
 	if err := userRepo.Save(ctx, user); err != nil {
 		uow.Rollback(ctx)
@@ -58,6 +62,7 @@ func (h *UpdateUserImageWithUoWHandler) Handle(ctx context.Context, cmd *UpdateU
 		return errors.NewInternalError(fmt.Sprintf("failed to commit transaction: %v", err))
 	}
 
+	fmt.Printf("📤 UpdateUserImage: Publishing %d events...\n", len(events))
 	// Publish events AFTER successful commit
 	for _, event := range events {
 		if err := h.eventBus.Publish(ctx, event); err != nil {

@@ -3,6 +3,7 @@ package mongo
 import (
 	"context"
 	"fmt"
+	"time"
 	"whisko-petcare/internal/domain/aggregate"
 	"whisko-petcare/internal/domain/event"
 
@@ -119,46 +120,21 @@ func (r *MongoUserRepository) GetByID(ctx context.Context, id string) (*aggregat
 		return nil, fmt.Errorf("failed to find user: %w", err)
 	}
 
-	// Check if user has auth fields (hashed_password) - use auth constructor
-	hashedPassword := getString(result, "hashed_password")
-	role := getString(result, "role")
-	
-	var user *aggregate.User
-	if hashedPassword != "" && role != "" {
-		// User with authentication - use dummy password that passes validation
-		user, err = aggregate.NewUserWithPasswordAndRole(
-			id,
-			getString(result, "name"),
-			getString(result, "email"),
-			"dummy123", // Dummy password (6+ chars) - will be overridden with actual hash
-			aggregate.UserRole(role),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to reconstruct user: %w", err)
-		}
-		// Override with actual hashed password from DB (already hashed)
-		user.SetHashedPassword(hashedPassword)
-	} else {
-		// User without authentication
-		user, err = aggregate.NewUser(
-			id,
-			getString(result, "name"),
-			getString(result, "email"),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to reconstruct user: %w", err)
-		}
-	}
-
-	// Update contact info if present
-	phone := getString(result, "phone")
-	address := getString(result, "address")
-	if phone != "" || address != "" {
-		user.UpdateContactInfo(phone, address)
-	}
-
-	// Set version
-	user.SetVersion(getInt(result, "version"))
+	// Reconstruct user from database state WITHOUT raising events
+	user := aggregate.ReconstructUser(
+		getString(result, "_id"),
+		getString(result, "name"),
+		getString(result, "email"),
+		getString(result, "phone"),
+		getString(result, "address"),
+		getString(result, "hashed_password"),
+		aggregate.UserRole(getString(result, "role")),
+		getString(result, "image_url"),
+		getInt(result, "version"),
+		getUserTime(result, "created_at"),
+		getUserTime(result, "updated_at"),
+		getBool(result, "is_active"),
+	)
 
 	return user, nil
 }
@@ -239,4 +215,18 @@ func getInt(doc bson.M, key string) int {
 		return int(val)
 	}
 	return 0
+}
+
+func getBool(doc bson.M, key string) bool {
+	if val, ok := doc[key].(bool); ok {
+		return val
+	}
+	return false
+}
+
+func getUserTime(doc bson.M, key string) time.Time {
+	if val, ok := doc[key].(time.Time); ok {
+		return val
+	}
+	return time.Time{}
 }
