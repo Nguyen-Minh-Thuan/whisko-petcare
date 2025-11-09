@@ -356,4 +356,5 @@ func (p *MongoScheduleProjection) HandleScheduleCancelled(ctx context.Context, e
 	}
 	
 	return nil
+	
 }
