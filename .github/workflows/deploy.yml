@@ -30,22 +30,27 @@ jobs:
             cd deployments
             docker-compose down
 
-            echo "Building and starting containers with environment variables..."
-            PORT=${{ secrets.PORT }} \
-            MONGO_URI="${{ secrets.MONGO_URI }}" \
-            MONGO_DATABASE="${{ secrets.MONGO_DATABASE }}" \
-            JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}" \
-            JWT_TOKEN_DURATION="${{ secrets.JWT_TOKEN_DURATION }}" \
-            PAYOS_CLIENT_ID="${{ secrets.PAYOS_CLIENT_ID }}" \
-            PAYOS_API_KEY="${{ secrets.PAYOS_API_KEY }}" \
-            PAYOS_CHECKSUM_KEY="${{ secrets.PAYOS_CHECKSUM_KEY }}" \
-            PAYOS_BASE_URL="${{ secrets.PAYOS_BASE_URL }}" \
-            PAYOS_RETURN_URL="${{ secrets.PAYOS_RETURN_URL }}" \
-            PAYOS_CANCEL_URL="${{ secrets.PAYOS_CANCEL_URL }}" \
-            CLOUDINARY_CLOUD_NAME="${{ secrets.CLOUDINARY_CLOUD_NAME }}" \
-            CLOUDINARY_API_KEY="${{ secrets.CLOUDINARY_API_KEY }}" \
-            CLOUDINARY_API_SECRET="${{ secrets.CLOUDINARY_API_SECRET }}" \
-            CLOUDINARY_FOLDER="${{ secrets.CLOUDINARY_FOLDER }}" \
+            echo "Creating .env file from GitHub Secrets..."
+            cat > ../.env << 'EOF'
+            PORT=${{ secrets.PORT }}
+            MONGO_URI=${{ secrets.MONGO_URI }}
+            MONGO_DATABASE=${{ secrets.MONGO_DATABASE }}
+            JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+            JWT_TOKEN_DURATION=${{ secrets.JWT_TOKEN_DURATION }}
+            PAYOS_CLIENT_ID=${{ secrets.PAYOS_CLIENT_ID }}
+            PAYOS_API_KEY=${{ secrets.PAYOS_API_KEY }}
+            PAYOS_CHECKSUM_KEY=${{ secrets.PAYOS_CHECKSUM_KEY }}
+            PAYOS_PARTNER_CODE=${{ secrets.PAYOS_PARTNER_CODE }}
+            PAYOS_BASE_URL=${{ secrets.PAYOS_BASE_URL }}
+            PAYOS_RETURN_URL=${{ secrets.PAYOS_RETURN_URL }}
+            PAYOS_CANCEL_URL=${{ secrets.PAYOS_CANCEL_URL }}
+            CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
+            CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
+            CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
+            CLOUDINARY_FOLDER=${{ secrets.CLOUDINARY_FOLDER }}
+            EOF
+
+            echo "Building and starting containers..."
             docker-compose up -d --build
             
             echo "Checking container logs..."
