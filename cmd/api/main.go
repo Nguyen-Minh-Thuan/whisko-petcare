@@ -223,17 +223,17 @@ func main() {
 	// Subscribe vendor projection to events
 	eventBus.Subscribe("VendorCreated", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
-			return vendorProjection.HandleVendorCreated(ctx, *e.(*event.VendorCreated))
+			return vendorProjection.HandleVendorCreated(ctx, e.(*event.VendorCreated))
 		}))
 
 	eventBus.Subscribe("VendorUpdated", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
-			return vendorProjection.HandleVendorUpdated(ctx, *e.(*event.VendorUpdated))
+			return vendorProjection.HandleVendorUpdated(ctx, e.(*event.VendorUpdated))
 		}))
 
 	eventBus.Subscribe("VendorDeleted", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
-			return vendorProjection.HandleVendorDeleted(ctx, *e.(*event.VendorDeleted))
+			return vendorProjection.HandleVendorDeleted(ctx, e.(*event.VendorDeleted))
 		}))
 
 	eventBus.Subscribe("VendorImageUpdated", bus.EventHandlerFunc(
@@ -244,17 +244,17 @@ func main() {
 	// Subscribe service projection to events
 	eventBus.Subscribe("ServiceCreated", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
-			return serviceProjection.HandleServiceCreated(ctx, *e.(*event.ServiceCreated))
+			return serviceProjection.HandleServiceCreated(ctx, e.(*event.ServiceCreated))
 		}))
 
 	eventBus.Subscribe("ServiceUpdated", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
-			return serviceProjection.HandleServiceUpdated(ctx, *e.(*event.ServiceUpdated))
+			return serviceProjection.HandleServiceUpdated(ctx, e.(*event.ServiceUpdated))
 		}))
 
 	eventBus.Subscribe("ServiceDeleted", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
-			return serviceProjection.HandleServiceDeleted(ctx, *e.(*event.ServiceDeleted))
+			return serviceProjection.HandleServiceDeleted(ctx, e.(*event.ServiceDeleted))
 		}))
 
 	eventBus.Subscribe("ServiceImageUpdated", bus.EventHandlerFunc(

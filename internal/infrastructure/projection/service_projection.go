@@ -143,7 +143,7 @@ func (p *MongoServiceProjection) ListAll(ctx context.Context, offset, limit int)
 }
 
 // HandleServiceCreated handles ServiceCreated event
-func (p *MongoServiceProjection) HandleServiceCreated(ctx context.Context, evt event.ServiceCreated) error {
+func (p *MongoServiceProjection) HandleServiceCreated(ctx context.Context, evt *event.ServiceCreated) error {
 	// Convert duration from time.Duration to minutes
 	durationMinutes := int(evt.Duration.Minutes())
 	
@@ -170,7 +170,7 @@ func (p *MongoServiceProjection) HandleServiceCreated(ctx context.Context, evt e
 }
 
 // HandleServiceUpdated handles ServiceUpdated event
-func (p *MongoServiceProjection) HandleServiceUpdated(ctx context.Context, evt event.ServiceUpdated) error {
+func (p *MongoServiceProjection) HandleServiceUpdated(ctx context.Context, evt *event.ServiceUpdated) error {
 	// Convert duration from time.Duration to minutes
 	durationMinutes := int(evt.Duration.Minutes())
 	
@@ -194,7 +194,7 @@ func (p *MongoServiceProjection) HandleServiceUpdated(ctx context.Context, evt e
 }
 
 // HandleServiceDeleted handles ServiceDeleted event
-func (p *MongoServiceProjection) HandleServiceDeleted(ctx context.Context, evt event.ServiceDeleted) error {
+func (p *MongoServiceProjection) HandleServiceDeleted(ctx context.Context, evt *event.ServiceDeleted) error {
 	update := bson.M{
 		"$set": bson.M{
 			"is_active":  false,

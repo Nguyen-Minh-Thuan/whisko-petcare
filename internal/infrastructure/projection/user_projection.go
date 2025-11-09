@@ -180,6 +180,7 @@ func (p *MongoUserProjection) HandleUserCreated(ctx context.Context, event *even
 		"address":         event.Address,
 		"hashed_password": event.HashedPassword,
 		"role":            event.Role,
+		"image_url":       event.ImageUrl,
 		"is_active":       event.IsActive,
 		"version":         1,
 		"created_at":      event.Timestamp,

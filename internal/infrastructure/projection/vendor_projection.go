@@ -105,7 +105,7 @@ func (p *MongoVendorProjection) ListAll(ctx context.Context, offset, limit int) 
 }
 
 // HandleVendorCreated handles VendorCreated event
-func (p *MongoVendorProjection) HandleVendorCreated(ctx context.Context, evt event.VendorCreated) error {
+func (p *MongoVendorProjection) HandleVendorCreated(ctx context.Context, evt *event.VendorCreated) error {
 	vendor := VendorReadModel{
 		ID:        evt.VendorID,
 		Name:      evt.Name,
@@ -127,7 +127,7 @@ func (p *MongoVendorProjection) HandleVendorCreated(ctx context.Context, evt eve
 }
 
 // HandleVendorUpdated handles VendorUpdated event
-func (p *MongoVendorProjection) HandleVendorUpdated(ctx context.Context, evt event.VendorUpdated) error {
+func (p *MongoVendorProjection) HandleVendorUpdated(ctx context.Context, evt *event.VendorUpdated) error {
 	update := bson.M{
 		"$set": bson.M{
 			"name":       evt.Name,
@@ -147,7 +147,7 @@ func (p *MongoVendorProjection) HandleVendorUpdated(ctx context.Context, evt eve
 }
 
 // HandleVendorDeleted handles VendorDeleted event
-func (p *MongoVendorProjection) HandleVendorDeleted(ctx context.Context, evt event.VendorDeleted) error {
+func (p *MongoVendorProjection) HandleVendorDeleted(ctx context.Context, evt *event.VendorDeleted) error {
 	update := bson.M{
 		"$set": bson.M{
 			"is_active":  false,
