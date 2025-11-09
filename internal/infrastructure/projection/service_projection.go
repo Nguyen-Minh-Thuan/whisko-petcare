@@ -211,7 +211,7 @@ func (p *MongoServiceProjection) HandleServiceDeleted(ctx context.Context, evt e
 }
 
 // HandleServiceImageUpdated handles ServiceImageUpdated event
-func (p *MongoServiceProjection) HandleServiceImageUpdated(ctx context.Context, evt event.ServiceImageUpdated) error {
+func (p *MongoServiceProjection) HandleServiceImageUpdated(ctx context.Context, evt *event.ServiceImageUpdated) error {
 	update := bson.M{
 		"$set": bson.M{
 			"image_url":  evt.ImageUrl,

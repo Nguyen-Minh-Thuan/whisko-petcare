@@ -164,7 +164,7 @@ func (p *MongoVendorProjection) HandleVendorDeleted(ctx context.Context, evt eve
 }
 
 // HandleVendorImageUpdated handles VendorImageUpdated event
-func (p *MongoVendorProjection) HandleVendorImageUpdated(ctx context.Context, evt event.VendorImageUpdated) error {
+func (p *MongoVendorProjection) HandleVendorImageUpdated(ctx context.Context, evt *event.VendorImageUpdated) error {
 	update := bson.M{
 		"$set": bson.M{
 			"image_url":  evt.ImageUrl,

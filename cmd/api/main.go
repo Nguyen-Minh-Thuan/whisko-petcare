@@ -238,7 +238,7 @@ func main() {
 
 	eventBus.Subscribe("VendorImageUpdated", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
-			return vendorProjection.HandleVendorImageUpdated(ctx, *e.(*event.VendorImageUpdated))
+			return vendorProjection.HandleVendorImageUpdated(ctx, e.(*event.VendorImageUpdated))
 		}))
 
 	// Subscribe service projection to events
@@ -259,7 +259,7 @@ func main() {
 
 	eventBus.Subscribe("ServiceImageUpdated", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
-			return serviceProjection.HandleServiceImageUpdated(ctx, *e.(*event.ServiceImageUpdated))
+			return serviceProjection.HandleServiceImageUpdated(ctx, e.(*event.ServiceImageUpdated))
 		}))
 
 	// Subscribe schedule projection to events
