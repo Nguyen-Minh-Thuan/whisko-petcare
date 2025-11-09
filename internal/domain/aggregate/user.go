@@ -69,7 +69,7 @@ func NewUser(id, name, email string, imageUrl ...string) (*User, error) {
 	}
 
 	user.raiseEvent(&event.UserCreated{
-		UserID:         id,
+		UserID:         user.id,  // Use the generated UUID, not the parameter
 		Name:           name,
 		Email:          email,
 		Phone:          user.phone,
@@ -130,13 +130,14 @@ func NewUserWithPasswordAndRole(id, name, email, password string, role UserRole)
 	}
 
 	user.raiseEvent(&event.UserCreated{
-		UserID:         id,
+		UserID:         user.id,  // Use the generated UUID, not the parameter
 		Name:           name,
 		Email:          email,
 		Phone:          user.phone,
 		Address:        user.address,
 		HashedPassword: user.hashedPassword,
 		Role:           string(user.role),
+		ImageUrl:       user.imageUrl,  // Add ImageUrl field
 		IsActive:       user.isActive,
 		Timestamp:      user.createdAt,
 	})

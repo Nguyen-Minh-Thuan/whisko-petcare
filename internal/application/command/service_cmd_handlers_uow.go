@@ -70,6 +70,9 @@ func (h *CreateServiceWithUoWHandler) Handle(ctx context.Context, cmd *CreateSer
 		return errors.NewValidationError(fmt.Sprintf("failed to create service: %v", err))
 	}
 
+	// Get events BEFORE saving (Save() will clear them)
+	events := service.GetUncommittedEvents()
+
 	// Save service using repository from unit of work
 	serviceRepo := uow.ServiceRepository()
 	if err := serviceRepo.Save(ctx, service); err != nil {
@@ -77,15 +80,14 @@ func (h *CreateServiceWithUoWHandler) Handle(ctx context.Context, cmd *CreateSer
 		return errors.NewInternalError(fmt.Sprintf("failed to save service: %v", err))
 	}
 
-	// Publish events asynchronously
-	events := service.GetUncommittedEvents()
-	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
-		fmt.Printf("Warning: failed to publish service events: %v\n", err)
-	}
-
-	// Commit transaction
+	// Commit transaction FIRST
 	if err := uow.Commit(ctx); err != nil {
 		return errors.NewInternalError(fmt.Sprintf("failed to commit transaction: %v", err))
+	}
+
+	// Publish events AFTER successful commit (eventual consistency)
+	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
+		fmt.Printf("Warning: failed to publish service events: %v\n", err)
 	}
 
 	return nil

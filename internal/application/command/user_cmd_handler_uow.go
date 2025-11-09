@@ -48,6 +48,9 @@ func (h *CreateUserWithUoWHandler) Handle(ctx context.Context, cmd *CreateUser) 
 		}
 	}
 
+	// Get events BEFORE saving (Save() will clear them)
+	events := user.GetUncommittedEvents()
+
 	// Save user using repository from unit of work
 	userRepo := uow.UserRepository()
 	if err := userRepo.Save(ctx, user); err != nil {
@@ -55,18 +58,16 @@ func (h *CreateUserWithUoWHandler) Handle(ctx context.Context, cmd *CreateUser) 
 		return fmt.Errorf("failed to save user: %w", err)
 	}
 
-	// Publish events
-	events := user.GetUncommittedEvents()
-	for _, event := range events {
-		if err := h.eventBus.Publish(ctx, event); err != nil {
-			uow.Rollback(ctx)
-			return fmt.Errorf("failed to publish event: %w", err)
-		}
-	}
-
-	// Commit transaction
+	// Commit transaction FIRST
 	if err := uow.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// Publish events AFTER successful commit (eventual consistency)
+	for _, event := range events {
+		if err := h.eventBus.Publish(ctx, event); err != nil {
+			fmt.Printf("Warning: failed to publish user event: %v\n", err)
+		}
 	}
 
 	return nil

@@ -63,6 +63,9 @@ func (h *CreateVendorWithUoWHandler) Handle(ctx context.Context, cmd *CreateVend
 		return errors.NewValidationError(fmt.Sprintf("failed to create vendor: %v", err))
 	}
 
+	// Get events BEFORE saving (Save() will clear them)
+	events := vendor.GetUncommittedEvents()
+
 	// Save vendor using repository from unit of work
 	vendorRepo := uow.VendorRepository()
 	if err := vendorRepo.Save(ctx, vendor); err != nil {
@@ -70,15 +73,14 @@ func (h *CreateVendorWithUoWHandler) Handle(ctx context.Context, cmd *CreateVend
 		return errors.NewInternalError(fmt.Sprintf("failed to save vendor: %v", err))
 	}
 
-	// Publish events asynchronously
-	events := vendor.GetUncommittedEvents()
-	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
-		fmt.Printf("Warning: failed to publish vendor events: %v\n", err)
-	}
-
-	// Commit transaction
+	// Commit transaction FIRST
 	if err := uow.Commit(ctx); err != nil {
 		return errors.NewInternalError(fmt.Sprintf("failed to commit transaction: %v", err))
+	}
+
+	// Publish events AFTER successful commit (eventual consistency)
+	if err := h.eventBus.PublishBatch(ctx, events); err != nil {
+		fmt.Printf("Warning: failed to publish vendor events: %v\n", err)
 	}
 
 	return nil
