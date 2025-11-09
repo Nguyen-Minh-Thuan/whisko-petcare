@@ -7,6 +7,8 @@ services:
       dockerfile: deployments/Dockerfile
     expose:
       - "8080"
+    env_file:
+      - ../.env
     environment:
       # MongoDB Configuration
       - MONGO_URI=${MONGO_URI}
