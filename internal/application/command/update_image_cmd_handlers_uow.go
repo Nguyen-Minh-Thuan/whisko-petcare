@@ -45,21 +45,24 @@ func (h *UpdateUserImageWithUoWHandler) Handle(ctx context.Context, cmd *UpdateU
 		return errors.NewValidationError(fmt.Sprintf("failed to update image URL: %v", err))
 	}
 
+	// Get events BEFORE saving (Save() will clear them)
+	events := user.GetUncommittedEvents()
+
 	if err := userRepo.Save(ctx, user); err != nil {
 		uow.Rollback(ctx)
 		return errors.NewInternalError(fmt.Sprintf("failed to save user: %v", err))
 	}
 
-	events := user.GetUncommittedEvents()
-	for _, event := range events {
-		if err := h.eventBus.Publish(ctx, event); err != nil {
-			uow.Rollback(ctx)
-			return errors.NewInternalError(fmt.Sprintf("failed to publish event: %v", err))
-		}
-	}
-
+	// Commit transaction FIRST
 	if err := uow.Commit(ctx); err != nil {
 		return errors.NewInternalError(fmt.Sprintf("failed to commit transaction: %v", err))
+	}
+
+	// Publish events AFTER successful commit
+	for _, event := range events {
+		if err := h.eventBus.Publish(ctx, event); err != nil {
+			fmt.Printf("Warning: failed to publish user image event: %v\n", err)
+		}
 	}
 
 	return nil
@@ -101,21 +104,24 @@ func (h *UpdatePetImageWithUoWHandler) Handle(ctx context.Context, cmd *UpdatePe
 		return errors.NewValidationError(fmt.Sprintf("failed to update image URL: %v", err))
 	}
 
+	// Get events BEFORE saving (Save() will clear them)
+	events := pet.GetUncommittedEvents()
+
 	if err := petRepo.Save(ctx, pet); err != nil {
 		uow.Rollback(ctx)
 		return errors.NewInternalError(fmt.Sprintf("failed to save pet: %v", err))
 	}
 
-	events := pet.GetUncommittedEvents()
-	for _, event := range events {
-		if err := h.eventBus.Publish(ctx, event); err != nil {
-			uow.Rollback(ctx)
-			return errors.NewInternalError(fmt.Sprintf("failed to publish event: %v", err))
-		}
-	}
-
+	// Commit transaction FIRST
 	if err := uow.Commit(ctx); err != nil {
 		return errors.NewInternalError(fmt.Sprintf("failed to commit transaction: %v", err))
+	}
+
+	// Publish events AFTER successful commit
+	for _, event := range events {
+		if err := h.eventBus.Publish(ctx, event); err != nil {
+			fmt.Printf("Warning: failed to publish pet image event: %v\n", err)
+		}
 	}
 
 	return nil
@@ -157,21 +163,24 @@ func (h *UpdateVendorImageWithUoWHandler) Handle(ctx context.Context, cmd *Updat
 		return errors.NewValidationError(fmt.Sprintf("failed to update image URL: %v", err))
 	}
 
+	// Get events BEFORE saving (Save() will clear them)
+	events := vendor.GetUncommittedEvents()
+
 	if err := vendorRepo.Save(ctx, vendor); err != nil {
 		uow.Rollback(ctx)
 		return errors.NewInternalError(fmt.Sprintf("failed to save vendor: %v", err))
 	}
 
-	events := vendor.GetUncommittedEvents()
-	for _, event := range events {
-		if err := h.eventBus.Publish(ctx, event); err != nil {
-			uow.Rollback(ctx)
-			return errors.NewInternalError(fmt.Sprintf("failed to publish event: %v", err))
-		}
-	}
-
+	// Commit transaction FIRST
 	if err := uow.Commit(ctx); err != nil {
 		return errors.NewInternalError(fmt.Sprintf("failed to commit transaction: %v", err))
+	}
+
+	// Publish events AFTER successful commit
+	for _, event := range events {
+		if err := h.eventBus.Publish(ctx, event); err != nil {
+			fmt.Printf("Warning: failed to publish vendor image event: %v\n", err)
+		}
 	}
 
 	return nil
@@ -213,21 +222,24 @@ func (h *UpdateServiceImageWithUoWHandler) Handle(ctx context.Context, cmd *Upda
 		return errors.NewValidationError(fmt.Sprintf("failed to update image URL: %v", err))
 	}
 
+	// Get events BEFORE saving (Save() will clear them)
+	events := service.GetUncommittedEvents()
+
 	if err := serviceRepo.Save(ctx, service); err != nil {
 		uow.Rollback(ctx)
 		return errors.NewInternalError(fmt.Sprintf("failed to save service: %v", err))
 	}
 
-	events := service.GetUncommittedEvents()
-	for _, event := range events {
-		if err := h.eventBus.Publish(ctx, event); err != nil {
-			uow.Rollback(ctx)
-			return errors.NewInternalError(fmt.Sprintf("failed to publish event: %v", err))
-		}
-	}
-
+	// Commit transaction FIRST
 	if err := uow.Commit(ctx); err != nil {
 		return errors.NewInternalError(fmt.Sprintf("failed to commit transaction: %v", err))
+	}
+
+	// Publish events AFTER successful commit
+	for _, event := range events {
+		if err := h.eventBus.Publish(ctx, event); err != nil {
+			fmt.Printf("Warning: failed to publish service image event: %v\n", err)
+		}
 	}
 
 	return nil
