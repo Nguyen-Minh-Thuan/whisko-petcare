@@ -69,6 +69,7 @@ type PetProjection interface {
 	HandlePetCreated(ctx context.Context, event *event.PetCreated) error
 	HandlePetUpdated(ctx context.Context, event *event.PetUpdated) error
 	HandlePetDeleted(ctx context.Context, event *event.PetDeleted) error
+	HandlePetImageUpdated(ctx context.Context, event *event.PetImageUpdated) error
 	HandlePetVaccinationAdded(ctx context.Context, event *event.PetVaccinationAdded) error
 	HandlePetMedicalRecordAdded(ctx context.Context, event *event.PetMedicalRecordAdded) error
 	HandlePetAllergyAdded(ctx context.Context, event *event.PetAllergyAdded) error
@@ -214,6 +215,28 @@ func (p *MongoPetProjection) HandlePetUpdated(ctx context.Context, event *event.
 	result, err := p.collection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return fmt.Errorf("failed to update pet: %w", err)
+	}
+	
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("pet not found: %s", event.PetID)
+	}
+	
+	return nil
+}
+
+// HandlePetImageUpdated handles the PetImageUpdated event
+func (p *MongoPetProjection) HandlePetImageUpdated(ctx context.Context, event *event.PetImageUpdated) error {
+	filter := bson.M{"_id": event.PetID}
+	update := bson.M{
+		"$set": bson.M{
+			"image_url":  event.ImageUrl,
+			"updated_at": event.Timestamp,
+		},
+	}
+	
+	result, err := p.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update pet image: %w", err)
 	}
 	
 	if result.MatchedCount == 0 {

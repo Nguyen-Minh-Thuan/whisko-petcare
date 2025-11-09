@@ -46,6 +46,7 @@ type UserProjection interface {
 	HandleUserRoleUpdated(ctx context.Context, event *event.UserRoleUpdated) error
 	HandleUserLoggedIn(ctx context.Context, event *event.UserLoggedIn) error
 	HandleUserDeleted(ctx context.Context, event *event.UserDeleted) error
+	HandleUserImageUpdated(ctx context.Context, event *event.UserImageUpdated) error
 }
 
 // MongoUserProjection implements UserProjection using MongoDB
@@ -322,6 +323,28 @@ func (p *MongoUserProjection) HandleUserDeleted(ctx context.Context, event *even
 
 	if result.MatchedCount == 0 {
 		return fmt.Errorf("user not found for deletion")
+	}
+
+	return nil
+}
+
+// HandleUserImageUpdated handles the UserImageUpdated event
+func (p *MongoUserProjection) HandleUserImageUpdated(ctx context.Context, event *event.UserImageUpdated) error {
+	filter := bson.M{"_id": event.UserID}
+	update := bson.M{
+		"$set": bson.M{
+			"image_url":  event.ImageUrl,
+			"updated_at": event.Timestamp,
+		},
+	}
+
+	result, err := p.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update user image in projection: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("user not found for image update")
 	}
 
 	return nil

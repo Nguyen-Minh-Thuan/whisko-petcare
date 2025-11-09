@@ -21,6 +21,7 @@ type ServiceReadModel struct {
 	Price       int       `bson:"price" json:"price"`             // Price in VND
 	Duration    int       `bson:"duration" json:"duration"`       // Duration in minutes
 	Tags        []string  `bson:"tags" json:"tags"`
+	ImageUrl    string    `bson:"image_url" json:"image_url,omitempty"`
 	IsActive    bool      `bson:"is_active" json:"is_active"`
 	CreatedAt   time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt   time.Time `bson:"updated_at" json:"updated_at"`
@@ -154,6 +155,7 @@ func (p *MongoServiceProjection) HandleServiceCreated(ctx context.Context, evt e
 		Price:       evt.Price,
 		Duration:    durationMinutes,
 		Tags:        evt.Tags,
+		ImageUrl:    evt.ImageUrl,
 		IsActive:    true,
 		CreatedAt:   evt.Timestamp,
 		UpdatedAt:   evt.Timestamp,
@@ -203,6 +205,23 @@ func (p *MongoServiceProjection) HandleServiceDeleted(ctx context.Context, evt e
 	_, err := p.collection.UpdateOne(ctx, bson.M{"_id": evt.ServiceID}, update)
 	if err != nil {
 		return fmt.Errorf("failed to soft delete service: %w", err)
+	}
+	
+	return nil
+}
+
+// HandleServiceImageUpdated handles ServiceImageUpdated event
+func (p *MongoServiceProjection) HandleServiceImageUpdated(ctx context.Context, evt event.ServiceImageUpdated) error {
+	update := bson.M{
+		"$set": bson.M{
+			"image_url":  evt.ImageUrl,
+			"updated_at": evt.Timestamp,
+		},
+	}
+	
+	_, err := p.collection.UpdateOne(ctx, bson.M{"_id": evt.ServiceID}, update)
+	if err != nil {
+		return fmt.Errorf("failed to update service image: %w", err)
 	}
 	
 	return nil

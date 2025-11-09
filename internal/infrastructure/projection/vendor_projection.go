@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"whisko-petcare/internal/domain/event"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -18,6 +19,7 @@ type VendorReadModel struct {
 	Email     string    `bson:"email" json:"email"`
 	Phone     string    `bson:"phone" json:"phone"`
 	Address   string    `bson:"address" json:"address"`
+	ImageUrl  string    `bson:"image_url" json:"image_url,omitempty"`
 	IsActive  bool      `bson:"is_active" json:"is_active"`
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
@@ -110,6 +112,7 @@ func (p *MongoVendorProjection) HandleVendorCreated(ctx context.Context, evt eve
 		Email:     evt.Email,
 		Phone:     evt.Phone,
 		Address:   evt.Address,
+		ImageUrl:  evt.ImageUrl,
 		IsActive:  true,
 		CreatedAt: evt.Timestamp,
 		UpdatedAt: evt.Timestamp,
@@ -155,6 +158,23 @@ func (p *MongoVendorProjection) HandleVendorDeleted(ctx context.Context, evt eve
 	_, err := p.collection.UpdateOne(ctx, bson.M{"_id": evt.VendorID}, update)
 	if err != nil {
 		return fmt.Errorf("failed to soft delete vendor: %w", err)
+	}
+	
+	return nil
+}
+
+// HandleVendorImageUpdated handles VendorImageUpdated event
+func (p *MongoVendorProjection) HandleVendorImageUpdated(ctx context.Context, evt event.VendorImageUpdated) error {
+	update := bson.M{
+		"$set": bson.M{
+			"image_url":  evt.ImageUrl,
+			"updated_at": evt.Timestamp,
+		},
+	}
+	
+	_, err := p.collection.UpdateOne(ctx, bson.M{"_id": evt.VendorID}, update)
+	if err != nil {
+		return fmt.Errorf("failed to update vendor image: %w", err)
 	}
 	
 	return nil

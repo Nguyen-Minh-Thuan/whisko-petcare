@@ -158,6 +158,11 @@ func main() {
 			return userProjection.HandleUserLoggedIn(ctx, e.(*event.UserLoggedIn))
 		}))
 
+	eventBus.Subscribe("UserImageUpdated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return userProjection.HandleUserImageUpdated(ctx, e.(*event.UserImageUpdated))
+		}))
+
 	// Subscribe payment projection to events
 	eventBus.Subscribe("PaymentCreated", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
@@ -210,6 +215,11 @@ func main() {
 			return petProjection.HandlePetAllergyRemoved(ctx, e.(*event.PetAllergyRemoved))
 		}))
 
+	eventBus.Subscribe("PetImageUpdated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return petProjection.HandlePetImageUpdated(ctx, e.(*event.PetImageUpdated))
+		}))
+
 	// Subscribe vendor projection to events
 	eventBus.Subscribe("VendorCreated", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
@@ -226,6 +236,11 @@ func main() {
 			return vendorProjection.HandleVendorDeleted(ctx, *e.(*event.VendorDeleted))
 		}))
 
+	eventBus.Subscribe("VendorImageUpdated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return vendorProjection.HandleVendorImageUpdated(ctx, *e.(*event.VendorImageUpdated))
+		}))
+
 	// Subscribe service projection to events
 	eventBus.Subscribe("ServiceCreated", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
@@ -240,6 +255,11 @@ func main() {
 	eventBus.Subscribe("ServiceDeleted", bus.EventHandlerFunc(
 		func(ctx context.Context, e event.DomainEvent) error {
 			return serviceProjection.HandleServiceDeleted(ctx, *e.(*event.ServiceDeleted))
+		}))
+
+	eventBus.Subscribe("ServiceImageUpdated", bus.EventHandlerFunc(
+		func(ctx context.Context, e event.DomainEvent) error {
+			return serviceProjection.HandleServiceImageUpdated(ctx, *e.(*event.ServiceImageUpdated))
 		}))
 
 	// Subscribe schedule projection to events
