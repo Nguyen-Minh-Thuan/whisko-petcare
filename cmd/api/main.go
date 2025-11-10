@@ -463,9 +463,14 @@ func main() {
 	changePasswordHandler := command.NewChangeUserPasswordWithUoWHandler(uowFactory, eventBus)
 	recordLoginHandler := command.NewRecordUserLoginWithUoWHandler(uowFactory, eventBus)
 
+	// Initialize query handlers
+	dashboardHandler := query.NewAdminDashboardHandler(database)
+
 	// Initialize HTTP controllers
 	userController := httpHandler.NewHTTPUserController(userService, cloudinaryService)
 	authController := httpHandler.NewHTTPAuthController(registerHandler, changePasswordHandler, recordLoginHandler, concreteUserProjection, jwtManager)
+	dashboardController := httpHandler.NewHTTPAdminDashboardController(dashboardHandler)
+	vendorDashboardController := httpHandler.NewHTTPVendorDashboardController(dashboardHandler)
 	paymentController := httpHandler.NewHTTPPaymentController(
 		createPaymentHandler,
 		cancelPaymentHandler,
@@ -914,6 +919,33 @@ func main() {
 	})
 	log.Println("✅ Service API routes registered:")
 	log.Println("   GET    /api/services/vendor/{vendorID}")
+
+	// Admin Dashboard routes
+	mux.HandleFunc("GET /admin/dashboard", middleware.JWTAuthMiddleware(jwtManager)(
+		middleware.RoleAuthMiddleware("Admin")(
+			http.HandlerFunc(dashboardController.GetDashboardStats),
+		)).ServeHTTP)
+	log.Println("   GET    /admin/dashboard?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD")
+
+	// Admin Vendor Revenue route
+	mux.HandleFunc("GET /admin/vendors/{vendorID}/revenue", middleware.JWTAuthMiddleware(jwtManager)(
+		middleware.RoleAuthMiddleware("Admin")(
+			http.HandlerFunc(vendorDashboardController.GetVendorRevenue),
+		)).ServeHTTP)
+	log.Println("   GET    /admin/vendors/{vendorID}/revenue?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD")
+
+	// Admin Vendor Dashboard route (admin can view any vendor's dashboard)
+	mux.HandleFunc("GET /admin/vendors/{vendorID}/dashboard", middleware.JWTAuthMiddleware(jwtManager)(
+		middleware.RoleAuthMiddleware("Admin")(
+			http.HandlerFunc(vendorDashboardController.GetVendorDashboardByAdmin),
+		)).ServeHTTP)
+	log.Println("   GET    /admin/vendors/{vendorID}/dashboard?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD")
+
+	// Vendor Dashboard route (vendor sees their own data)
+	mux.HandleFunc("GET /vendors/dashboard", middleware.JWTAuthMiddleware(jwtManager)(
+		http.HandlerFunc(vendorDashboardController.GetVendorDashboard),
+	).ServeHTTP)
+	log.Println("   GET    /vendors/dashboard?vendor_id=XXX&from_date=YYYY-MM-DD&to_date=YYYY-MM-DD")
 
 	// Health check
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
