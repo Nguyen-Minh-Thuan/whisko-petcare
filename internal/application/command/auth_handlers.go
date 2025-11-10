@@ -175,3 +175,6 @@ func generateToken() string {
 func verifyPassword(hashedPassword, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
+
+
+
