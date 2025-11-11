@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -123,6 +124,13 @@ func NewPayOSClient(config *PayOSConfig) *PayOSClient {
 		config.BaseURL = "https://api-merchant.payos.vn"
 	}
 
+	partnerCodeInfo := "NOT SET (will skip header)"
+	if config.PartnerCode != "" {
+		partnerCodeInfo = fmt.Sprintf("'%s' (length=%d)", config.PartnerCode, len(config.PartnerCode))
+	}
+	log.Printf("🔧 PayOS Client Initialized: BaseURL=%s, ClientID=%s, PartnerCode=%s", 
+		config.BaseURL, config.ClientID, partnerCodeInfo)
+
 	return &PayOSClient{
 		config: config,
 		httpClient: &http.Client{
@@ -161,7 +169,10 @@ func (c *PayOSClient) CreatePayment(ctx context.Context, req *CreatePaymentReque
 	httpReq.Header.Set("x-client-id", c.config.ClientID)
 	httpReq.Header.Set("x-api-key", c.config.APIKey)
 	if c.config.PartnerCode != "" {
+		log.Printf("🔧 PayOS CreatePayment: Setting partner code header = '%s'", c.config.PartnerCode)
 		httpReq.Header.Set("x-partner-code", c.config.PartnerCode)
+	} else {
+		log.Printf("✅ PayOS CreatePayment: Partner code is empty, skipping header (length=%d)", len(c.config.PartnerCode))
 	}
 	httpReq.Header.Set("x-signature", signature)
 
@@ -207,7 +218,10 @@ func (c *PayOSClient) GetPaymentInfo(ctx context.Context, orderCode int64) (*Pay
 	httpReq.Header.Set("x-client-id", c.config.ClientID)
 	httpReq.Header.Set("x-api-key", c.config.APIKey)
 	if c.config.PartnerCode != "" {
+		log.Printf("🔧 PayOS GetPaymentInfo: Setting partner code header = '%s'", c.config.PartnerCode)
 		httpReq.Header.Set("x-partner-code", c.config.PartnerCode)
+	} else {
+		log.Printf("✅ PayOS GetPaymentInfo: Partner code is empty, skipping header (length=%d)", len(c.config.PartnerCode))
 	}
 	httpReq.Header.Set("x-signature", signature)
 
@@ -263,7 +277,10 @@ func (c *PayOSClient) CancelPayment(ctx context.Context, orderCode int64, cancel
 	httpReq.Header.Set("x-client-id", c.config.ClientID)
 	httpReq.Header.Set("x-api-key", c.config.APIKey)
 	if c.config.PartnerCode != "" {
+		log.Printf("🔧 PayOS CancelPayment: Setting partner code header = '%s'", c.config.PartnerCode)
 		httpReq.Header.Set("x-partner-code", c.config.PartnerCode)
+	} else {
+		log.Printf("✅ PayOS CancelPayment: Partner code is empty, skipping header (length=%d)", len(c.config.PartnerCode))
 	}
 	httpReq.Header.Set("x-signature", signature)
 
