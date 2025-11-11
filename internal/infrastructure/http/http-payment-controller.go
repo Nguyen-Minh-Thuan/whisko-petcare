@@ -275,6 +275,17 @@ func (c *HTTPPaymentController) WebhookHandler(w http.ResponseWriter, r *http.Re
 	}
 	fmt.Printf("📦 Webhook payload received: %+v\n", webhookPayload)
 
+	// Handle PayOS test/ping requests (when setting up webhook URL)
+	// PayOS sends a test request with minimal data to verify the endpoint
+	if len(webhookPayload) == 0 || (len(webhookPayload) == 1 && webhookPayload["test"] != nil) {
+		fmt.Printf("✅ PayOS test/ping request - responding OK\n")
+		response.SendSuccess(w, r, map[string]interface{}{
+			"message": "Webhook endpoint is ready",
+			"status":  "ok",
+		})
+		return
+	}
+
 	// Check for signature (optional for now since PayOS doesn't always send it)
 	signature := r.Header.Get("x-signature")
 	if signature != "" {

@@ -162,8 +162,17 @@ jobs:
             echo "🐳 Building and starting containers..."
             docker-compose up -d --build
             
+            echo "⏳ Waiting for containers to start..."
+            sleep 10
+            
+            echo "📊 Container status:"
+            docker-compose ps
+            
             echo "📊 Checking container logs..."
             docker-compose logs --tail=30
+            
+            echo "🔍 Testing API health..."
+            curl -f http://localhost:8080/health || echo "⚠️ API not responding yet"
 
             echo "🔥 Configuring firewall..."
             # CRITICAL: Allow SSH FIRST to prevent lockout!

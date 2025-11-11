@@ -7,8 +7,8 @@ services:
       dockerfile: deployments/Dockerfile
     env_file:
       - ../.env
-    expose:
-      - "8080"
+    ports:
+      - "127.0.0.1:8080:8080"
     environment:
       # MongoDB Configuration
       - MONGO_URI=${MONGO_URI}
@@ -36,34 +36,7 @@ services:
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
       - CLOUDINARY_FOLDER=${CLOUDINARY_FOLDER}
     restart: unless-stopped
-    networks:
-      - app-network
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - ./certbot/conf:/etc/letsencrypt:ro
-      - ./certbot/www:/var/www/certbot:ro
-    restart: unless-stopped
-    networks:
-      - app-network
-    depends_on:
-      - app
-
-  certbot:
-    image: certbot/certbot
-    volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
+    deploy:
+      resources:
+        limits:
+          memory: 512M
