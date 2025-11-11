@@ -80,7 +80,7 @@ func main() {
 		ClientID:    getEnv("PAYOS_CLIENT_ID", ""),
 		APIKey:      getEnv("PAYOS_API_KEY", ""),
 		ChecksumKey: getEnv("PAYOS_CHECKSUM_KEY", ""),
-		PartnerCode: getEnv("PAYOS_PARTNER_CODE", ""),
+		PartnerCode: "", // Hardcoded to empty - partner code not required
 		ReturnURL:   getEnv("PAYOS_RETURN_URL", "http://localhost:8080/payments/return"),
 		CancelURL:   getEnv("PAYOS_CANCEL_URL", "http://localhost:8080/payments/cancel"),
 	}
