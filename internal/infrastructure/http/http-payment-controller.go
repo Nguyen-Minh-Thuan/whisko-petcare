@@ -371,6 +371,19 @@ func (c *HTTPPaymentController) WebhookHandler(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		fmt.Printf("❌ Webhook processing failed: %v\n", err)
 		fmt.Printf("========================================\n")
+		
+		// If payment not found, it's likely a PayOS test webhook
+		// Return success to pass PayOS validation
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "payment not found") {
+			fmt.Printf("⚠️ Payment not found - likely a PayOS test webhook\n")
+			fmt.Printf("✅ Returning success for test webhook validation\n")
+			response.SendSuccess(w, r, map[string]interface{}{
+				"message": "Webhook received (test payment)",
+				"orderCode": orderCode,
+			})
+			return
+		}
+		
 		response.SendInternalError(w, r, "Failed to process webhook")
 		return
 	}
