@@ -57,7 +57,6 @@ jobs:
             PAYOS_CLIENT_ID=${{ secrets.PAYOS_CLIENT_ID }}
             PAYOS_API_KEY=${{ secrets.PAYOS_API_KEY }}
             PAYOS_CHECKSUM_KEY=${{ secrets.PAYOS_CHECKSUM_KEY }}
-            PAYOS_PARTNER_CODE=${{ secrets.PAYOS_PARTNER_CODE }}
             PAYOS_BASE_URL=${{ secrets.PAYOS_BASE_URL }}
             PAYOS_RETURN_URL=${{ secrets.PAYOS_RETURN_URL }}
             PAYOS_CANCEL_URL=${{ secrets.PAYOS_CANCEL_URL }}

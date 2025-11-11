@@ -42,14 +42,19 @@ func NewService(config *Config) (*Service, error) {
 	// Initialize PayOS with keys
 	var err error
 	if config.PartnerCode != "" {
+		fmt.Printf("🔧 PayOS SDK: Initializing with Partner Code = '%s' (length=%d)\n", config.PartnerCode, len(config.PartnerCode))
 		err = payossdk.Key(config.ClientID, config.APIKey, config.ChecksumKey, config.PartnerCode)
 	} else {
+		fmt.Printf("✅ PayOS SDK: Initializing WITHOUT Partner Code (empty or not set)\n")
 		err = payossdk.Key(config.ClientID, config.APIKey, config.ChecksumKey)
 	}
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize PayOS: %w", err)
 	}
+
+	fmt.Printf("✅ PayOS SDK Initialized: ClientID=%s, ReturnURL=%s, CancelURL=%s\n", 
+		config.ClientID, config.ReturnURL, config.CancelURL)
 
 	return &Service{
 		initialized: true,
@@ -62,6 +67,9 @@ func (s *Service) CreatePaymentLink(ctx context.Context, req *CreatePaymentReque
 	if !s.initialized {
 		return nil, fmt.Errorf("PayOS service not initialized")
 	}
+
+	fmt.Printf("💳 PayOS CreatePaymentLink: OrderCode=%d, Amount=%d, Items=%d\n", 
+		req.OrderCode, req.Amount, len(req.Items))
 
 	// Convert our items to PayOS format
 	var items []payossdk.Item
@@ -83,11 +91,16 @@ func (s *Service) CreatePaymentLink(ctx context.Context, req *CreatePaymentReque
 		CancelUrl:   req.CancelURL,
 	}
 
+	fmt.Printf("📤 Calling PayOS SDK CreatePaymentLink...\n")
 	// Create payment link
 	response, err := payossdk.CreatePaymentLink(paymentRequest)
 	if err != nil {
+		fmt.Printf("❌ PayOS SDK Error: %v\n", err)
 		return nil, fmt.Errorf("failed to create payment link: %w", err)
 	}
+
+	fmt.Printf("✅ PayOS SDK Response: CheckoutUrl=%s, OrderCode=%d\n", 
+		response.CheckoutUrl, response.OrderCode)
 
 	// Convert SDK response to our response format
 	return &CreatePaymentResponse{
