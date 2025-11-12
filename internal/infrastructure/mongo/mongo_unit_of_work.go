@@ -73,8 +73,9 @@ func (uow *MongoUnitOfWork) Commit(ctx context.Context) error {
 	uow.mutex.Lock()
 	defer uow.mutex.Unlock()
 
+	// If no active transaction, nothing to commit (safe to call multiple times)
 	if !uow.inTransaction {
-		return fmt.Errorf("no active transaction to commit")
+		return nil
 	}
 
 	err := uow.session.CommitTransaction(ctx)
