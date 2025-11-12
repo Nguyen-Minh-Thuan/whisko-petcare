@@ -21,6 +21,7 @@ type PayoutConfig struct {
 	APIKey      string
 	ChecksumKey string
 	BaseURL     string
+	WebhookURL  string
 }
 
 // PayoutService handles real bank transfers via PayOS Payout API
