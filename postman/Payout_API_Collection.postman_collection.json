@@ -1,0 +1,384 @@
+{
+	"info": {
+		"_postman_id": "payout-api-collection-v1",
+		"name": "Whisko Payout API",
+		"description": "Complete Payout API endpoints for bank transfers via PayOS\n\n**Automatic Flow:**\n1. User pays for service → Payment confirmed\n2. System auto-creates payout → Calls PayOS API\n3. Money transfers to vendor's bank account\n4. Payout status updated → Schedule created\n\n**Vendor Bank Account:**\n- Bank: TPBank (BIN: 970423)\n- Account: 31404112004\n- Name: NGUYEN QUY HUNG\n- Branch: Ho Chi Minh",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Update Vendor Bank Account",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"bank_name\": \"TPBank\",\n  \"account_number\": \"31404112004\",\n  \"account_name\": \"NGUYEN QUY HUNG\",\n  \"bank_branch\": \"Ho Chi Minh\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/vendors/{{vendor_id}}/bank-account",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"vendors",
+						"{{vendor_id}}",
+						"bank-account"
+					]
+				},
+				"description": "**First Step:** Update vendor's bank account information\n\n**No authentication required**\n\n**Bank Code Mapping:**\n- TPBank → 970423\n- VietinBank → 970415\n- Vietcombank → 970436\n\nOnce updated, automatic payouts will work after payment confirmation."
+			},
+			"response": []
+		},
+		{
+			"name": "2. Process Payout Manually",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}",
+						"description": "Admin/Vendor token"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/payouts/{{payout_id}}/process",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"payouts",
+						"{{payout_id}}",
+						"process"
+					]
+				},
+				"description": "**Manual Trigger:** Process a payout that is in PENDING status\n\n**This initiates a REAL bank transfer via PayOS API**\n\n**Flow:**\n1. Check payout status is PENDING\n2. Get vendor's bank account\n3. Call PayOS Payout API\n4. Transfer money to bank account\n5. Update payout status (PROCESSING/COMPLETED/FAILED)\n\n**Note:** Normally payouts are processed automatically after payment confirmation. This endpoint is for manual processing."
+			},
+			"response": [
+				{
+					"name": "Success - Transfer Initiated",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/payouts/{{payout_id}}/process",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"payouts",
+								"{{payout_id}}",
+								"process"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n  \"success\": true,\n  \"data\": {\n    \"payoutId\": \"payout-123\",\n    \"transferId\": \"TRF-XYZ789\",\n    \"status\": \"PROCESSING\",\n    \"amount\": 100000,\n    \"message\": \"Payout processed successfully\"\n  },\n  \"message\": \"Success\"\n}"
+				}
+			]
+		},
+		{
+			"name": "3. Get Payout by ID",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}",
+						"description": "Admin/Vendor token"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/payouts/{{payout_id}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"payouts",
+						"{{payout_id}}"
+					]
+				},
+				"description": "Get detailed information about a specific payout\n\n**Returns:**\n- Payout ID, status, amount\n- Vendor and payment information\n- Bank account details\n- Transfer ID from PayOS\n- Timestamps (requested, processed, completed)"
+			},
+			"response": [
+				{
+					"name": "Payout Details",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/payouts/{{payout_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"payouts",
+								"{{payout_id}}"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"payout-123\",\n    \"vendorId\": \"vendor-456\",\n    \"vendorName\": \"John's Pet Services\",\n    \"paymentId\": \"payment-789\",\n    \"scheduleId\": \"schedule-012\",\n    \"amount\": 100000,\n    \"status\": \"COMPLETED\",\n    \"notes\": \"Payment for grooming service\",\n    \"payosTransferId\": \"TRF-XYZ789\",\n    \"failureReason\": \"\",\n    \"bankAccount\": {\n      \"BankName\": \"TPBank\",\n      \"AccountNumber\": \"31404112004\",\n      \"AccountName\": \"NGUYEN QUY HUNG\",\n      \"BankBranch\": \"Ho Chi Minh\"\n    },\n    \"requestedAt\": \"2025-11-13T10:00:00Z\",\n    \"processedAt\": \"2025-11-13T10:00:05Z\",\n    \"completedAt\": \"2025-11-13T10:00:10Z\",\n    \"createdAt\": \"2025-11-13T10:00:00Z\",\n    \"updatedAt\": \"2025-11-13T10:00:10Z\"\n  },\n  \"message\": \"Success\"\n}"
+				}
+			]
+		},
+		{
+			"name": "4. List Payouts by Vendor",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}",
+						"description": "Admin/Vendor token"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/payouts/vendor/{{vendor_id}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"payouts",
+						"vendor",
+						"{{vendor_id}}"
+					]
+				},
+				"description": "List all payouts for a specific vendor\n\n**Use Cases:**\n- Vendor wants to see their payment history\n- Admin tracking vendor payouts\n- Financial reporting\n\n**Default pagination:** 100 results"
+			},
+			"response": [
+				{
+					"name": "Vendor Payouts List",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/payouts/vendor/{{vendor_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"payouts",
+								"vendor",
+								"{{vendor_id}}"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n  \"success\": true,\n  \"data\": {\n    \"payouts\": [\n      {\n        \"id\": \"payout-123\",\n        \"vendorId\": \"vendor-456\",\n        \"paymentId\": \"payment-789\",\n        \"scheduleId\": \"schedule-012\",\n        \"amount\": 100000,\n        \"status\": \"COMPLETED\",\n        \"notes\": \"Payment for grooming\",\n        \"createdAt\": \"2025-11-13T10:00:00Z\"\n      },\n      {\n        \"id\": \"payout-124\",\n        \"vendorId\": \"vendor-456\",\n        \"paymentId\": \"payment-790\",\n        \"scheduleId\": \"schedule-013\",\n        \"amount\": 150000,\n        \"status\": \"PROCESSING\",\n        \"notes\": \"Payment for training\",\n        \"createdAt\": \"2025-11-13T11:00:00Z\"\n      }\n    ],\n    \"total\": 2\n  },\n  \"message\": \"Success\"\n}"
+				}
+			]
+		},
+		{
+			"name": "5. List Payouts by Status",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}",
+						"description": "Admin token"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/payouts/status/{{status}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"payouts",
+						"status",
+						"{{status}}"
+					]
+				},
+				"description": "Filter payouts by status\n\n**Valid Statuses:**\n- `PENDING` - Created, waiting to process\n- `PROCESSING` - Transfer initiated via PayOS\n- `COMPLETED` - Money successfully transferred\n- `FAILED` - Transfer failed\n\n**Use Cases:**\n- Find failed payouts to retry\n- Monitor processing payouts\n- Financial reconciliation"
+			},
+			"response": [
+				{
+					"name": "Completed Payouts",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/payouts/status/COMPLETED",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"payouts",
+								"status",
+								"COMPLETED"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n  \"success\": true,\n  \"data\": {\n    \"payouts\": [\n      {\n        \"id\": \"payout-123\",\n        \"vendorId\": \"vendor-456\",\n        \"paymentId\": \"payment-789\",\n        \"scheduleId\": \"schedule-012\",\n        \"amount\": 100000,\n        \"status\": \"COMPLETED\",\n        \"notes\": \"Payment for grooming\",\n        \"createdAt\": \"2025-11-13T10:00:00Z\"\n      }\n    ],\n    \"total\": 1,\n    \"status\": \"COMPLETED\"\n  },\n  \"message\": \"Success\"\n}"
+				}
+			]
+		},
+		{
+			"name": "6. Payout Webhook (PayOS Callback)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "x-signature",
+						"value": "{{payos_signature}}",
+						"description": "PayOS HMAC signature for verification"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"referenceId\": \"payout-123\",\n  \"transferId\": \"TRF-XYZ789\",\n  \"status\": \"SUCCEEDED\",\n  \"amount\": 100000,\n  \"errorMessage\": \"\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/payouts/webhook",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"payouts",
+						"webhook"
+					]
+				},
+				"description": "**PayOS Webhook Endpoint** - Receives transfer status updates\n\n**⚠️ No authentication required** - PayOS calls this automatically\n\n**Webhook Flow:**\n1. PayOS processes the bank transfer\n2. PayOS sends status update to this endpoint\n3. System updates payout status in database\n\n**Webhook URL to configure in PayOS:**\n`https://api.whisko.shop/api/payouts/webhook`\n\n**Status Values:**\n- `SUCCEEDED` → Payout marked as COMPLETED\n- `FAILED` → Payout marked as FAILED with error message\n\n**Note:** This endpoint is called by PayOS, not by your frontend."
+			},
+			"response": [
+				{
+					"name": "Webhook Success Response",
+					"originalRequest": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"referenceId\": \"payout-123\",\n  \"transferId\": \"TRF-XYZ789\",\n  \"status\": \"SUCCEEDED\",\n  \"amount\": 100000\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/payouts/webhook",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"payouts",
+								"webhook"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n  \"success\": true,\n  \"data\": {\n    \"message\": \"Webhook processed successfully\"\n  },\n  \"message\": \"Success\"\n}"
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://api.whisko.shop",
+			"type": "string"
+		},
+		{
+			"key": "vendor_id",
+			"value": "69f50647-4055-4189-8b54-71932e929f88",
+			"type": "string",
+			"description": "John's Pet Services vendor ID"
+		},
+		{
+			"key": "payout_id",
+			"value": "",
+			"type": "string",
+			"description": "Payout ID to test with - will be auto-created after payment"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string",
+			"description": "JWT token from login"
+		},
+		{
+			"key": "status",
+			"value": "COMPLETED",
+			"type": "string",
+			"description": "Payout status filter: PENDING, PROCESSING, COMPLETED, FAILED"
+		},
+		{
+			"key": "payos_signature",
+			"value": "",
+			"type": "string",
+			"description": "HMAC signature from PayOS webhook"
+		}
+	]
+}

@@ -220,6 +220,14 @@ func (s *PayoutService) createPayout(ctx context.Context, req *CreatePayoutReque
 	// Generate signature for request authentication
 	signature := s.generateSignature(req)
 
+	// Log request details for debugging
+	fmt.Printf("📤 PayOS Payout Request:\n")
+	fmt.Printf("   URL: %s\n", url)
+	fmt.Printf("   Client ID: %s\n", s.config.ClientID)
+	fmt.Printf("   API Key: %s...%s\n", s.config.APIKey[:8], s.config.APIKey[len(s.config.APIKey)-4:])
+	fmt.Printf("   Idempotency Key: %s\n", idempotencyKey)
+	fmt.Printf("   Request Body: %s\n", string(bodyBytes))
+
 	// Set headers
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("x-client-id", s.config.ClientID)
@@ -271,10 +279,16 @@ func (s *PayoutService) generateSignature(req *CreatePayoutRequest) string {
 		req.ToBin,
 	)
 
+	// Log signature data for debugging
+	fmt.Printf("🔐 Signature Data: %s\n", data)
+	fmt.Printf("🔑 Checksum Key Length: %d chars\n", len(s.config.ChecksumKey))
+
 	// Create HMAC-SHA256 hash
 	h := hmac.New(sha256.New, []byte(s.config.ChecksumKey))
 	h.Write([]byte(data))
 	signature := hex.EncodeToString(h.Sum(nil))
+
+	fmt.Printf("✅ Generated Signature: %s\n", signature)
 
 	return signature
 }

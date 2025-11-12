@@ -70,6 +70,9 @@ jobs:
             CLOUDINARY_FOLDER=${{ secrets.CLOUDINARY_FOLDER }}
             EOF
 
+            echo "Copying .env to deployments directory for docker-compose..."
+            cp ../.env .env
+
             echo "📦 Installing/Updating Nginx and Certbot..."
             sudo apt update
             sudo apt install -y nginx certbot python3-certbot-nginx

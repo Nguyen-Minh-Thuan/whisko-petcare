@@ -6,41 +6,12 @@ services:
       context: ..
       dockerfile: deployments/Dockerfile
     env_file:
-      - ../.env
+      - .env
     ports:
       - "8080:8080"
     environment:
-      # MongoDB Configuration
-      - MONGO_URI=${MONGO_URI}
-      - MONGO_DATABASE=${MONGO_DATABASE}
-      
-      # Server Configuration
+      # Server Configuration (hardcoded)
       - PORT=8080
-      
-      # JWT Configuration
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - JWT_TOKEN_DURATION=${JWT_TOKEN_DURATION:-24h}
-      
-      # PayOS Configuration
-      - PAYOS_CLIENT_ID=${PAYOS_CLIENT_ID}
-      - PAYOS_API_KEY=${PAYOS_API_KEY}
-      - PAYOS_CHECKSUM_KEY=${PAYOS_CHECKSUM_KEY}
-      - PAYOS_PARTNER_CODE=${PAYOS_PARTNER_CODE}
-      - PAYOS_BASE_URL=${PAYOS_BASE_URL}
-      - PAYOS_RETURN_URL=${PAYOS_RETURN_URL}
-      - PAYOS_CANCEL_URL=${PAYOS_CANCEL_URL}
-      
-      # PayOS Payout/Transfer Configuration
-      - PAYOS_PAYOUT_CLIENT_ID=${PAYOS_PAYOUT_CLIENT_ID}
-      - PAYOS_PAYOUT_API_KEY=${PAYOS_PAYOUT_API_KEY}
-      - PAYOS_PAYOUT_CHECKSUM_KEY=${PAYOS_PAYOUT_CHECKSUM_KEY}
-      - PAYOS_PAYOUT_WEBHOOK_URL=${PAYOS_PAYOUT_WEBHOOK_URL}
-      
-      # Cloudinary Configuration
-      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
-      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
-      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
-      - CLOUDINARY_FOLDER=${CLOUDINARY_FOLDER}
     restart: unless-stopped
     deploy:
       resources:
