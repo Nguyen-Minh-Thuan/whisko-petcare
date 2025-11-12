@@ -53,9 +53,9 @@ func (c *HTTPPayoutController) ProcessPayout(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Check if payout is in pending status
-	if payout.Status() != aggregate.PayoutStatusPending {
-		response.SendBadRequest(w, r, "Payout can only be processed when status is PENDING. Current status: "+string(payout.Status()))
+	// Check if payout is in pending or failed status (allow retry of failed payouts)
+	if payout.Status() != aggregate.PayoutStatusPending && payout.Status() != aggregate.PayoutStatusFailed {
+		response.SendBadRequest(w, r, "Payout can only be processed when status is PENDING or FAILED. Current status: "+string(payout.Status()))
 		return
 	}
 
