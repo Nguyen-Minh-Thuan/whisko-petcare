@@ -217,8 +217,8 @@ func (s *PayoutService) createPayout(ctx context.Context, req *CreatePayoutReque
 	// Generate idempotency key (unique per request)
 	idempotencyKey := uuid.New().String()
 
-	// Generate signature for request authentication
-	signature := s.generateSignature(req)
+	// Generate signature for request authentication (using same format as payment API)
+	signature := s.generateSignature(bodyBytes)
 
 	// Log request details for debugging
 	fmt.Printf("📤 PayOS Payout Request:\n")
@@ -268,19 +268,23 @@ func (s *PayoutService) createPayout(ctx context.Context, req *CreatePayoutReque
 }
 
 // generateSignature creates HMAC-SHA256 signature for PayOS authentication
-func (s *PayoutService) generateSignature(req *CreatePayoutRequest) string {
-	// Create data string for signature
-	// Format: referenceId=XXX&amount=XXX&description=XXX&toBin=XXX&toAccountNumber=XXX
-	data := fmt.Sprintf("amount=%d&description=%s&referenceId=%s&toAccountNumber=%s&toBin=%s",
-		req.Amount,
-		req.Description,
-		req.ReferenceID,
-		req.ToAccountNumber,
-		req.ToBin,
-	)
+// Uses the same format as payment API: method + path + timestamp + body
+func (s *PayoutService) generateSignature(requestBody []byte) string {
+	// Create data string for signature: method + path + timestamp + body
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	method := "POST"
+	path := "/v1/payouts"
+	body := string(requestBody)
+	
+	data := method + path + timestamp + body
 
 	// Log signature data for debugging
-	fmt.Printf("🔐 Signature Data: %s\n", data)
+	fmt.Printf("🔐 Signature Data Components:\n")
+	fmt.Printf("   Method: %s\n", method)
+	fmt.Printf("   Path: %s\n", path)
+	fmt.Printf("   Timestamp: %s\n", timestamp)
+	fmt.Printf("   Body: %s\n", body)
+	fmt.Printf("   Combined: %s\n", data)
 	fmt.Printf("🔑 Checksum Key Length: %d chars\n", len(s.config.ChecksumKey))
 
 	// Create HMAC-SHA256 hash
