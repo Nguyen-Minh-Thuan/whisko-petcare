@@ -159,13 +159,14 @@ func (p *Payout) MarkAsCompleted() error {
 
 // MarkAsFailed marks payout as failed (from webhook or error)
 func (p *Payout) MarkAsFailed(reason string) error {
-	if p.status != PayoutStatusProcessing && p.status != PayoutStatusApproved {
-		return fmt.Errorf("only processing or approved payouts can be failed (current status: %s)", p.status)
+	// allow failing when processing or pending (e.g., immediate failure)
+	if p.status != PayoutStatusProcessing && p.status != PayoutStatusPending {
+		return fmt.Errorf("only processing or pending payouts can be failed (current status: %s)", p.status)
 	}
 
 	now := time.Now()
 	p.status = PayoutStatusFailed
-	p.rejectionReason = reason
+	p.failureReason = reason
 	p.version++
 	p.updatedAt = now
 
@@ -210,24 +211,6 @@ func (p *Payout) applyEvent(ev event.DomainEvent) error {
 		p.updatedAt = e.Timestamp
 		p.version = 1
 
-	case *event.PayoutApproved:
-		p.status = PayoutStatusApproved
-		p.approvedAt = &e.ApprovedAt
-		p.approvedBy = e.ApprovedBy
-		if e.Notes != "" {
-			p.notes = e.Notes
-		}
-		p.version = e.EventVersion
-		p.updatedAt = e.Timestamp
-
-	case *event.PayoutRejected:
-		p.status = PayoutStatusRejected
-		p.rejectedAt = &e.RejectedAt
-		p.rejectedBy = e.RejectedBy
-		p.rejectionReason = e.Reason
-		p.version = e.EventVersion
-		p.updatedAt = e.Timestamp
-
 	case *event.PayoutProcessing:
 		p.status = PayoutStatusProcessing
 		p.processedAt = &e.ProcessedAt
@@ -243,7 +226,7 @@ func (p *Payout) applyEvent(ev event.DomainEvent) error {
 
 	case *event.PayoutFailed:
 		p.status = PayoutStatusFailed
-		p.rejectionReason = e.Reason
+		p.failureReason = e.Reason
 		p.version = e.EventVersion
 		p.updatedAt = e.Timestamp
 
@@ -255,26 +238,22 @@ func (p *Payout) applyEvent(ev event.DomainEvent) error {
 }
 
 // Getters
-func (p *Payout) ID() string                   { return p.id }
-func (p *Payout) VendorID() string             { return p.vendorID }
-func (p *Payout) PaymentID() string            { return p.paymentID }
-func (p *Payout) ScheduleID() string           { return p.scheduleID }
-func (p *Payout) Amount() int                  { return p.amount }
-func (p *Payout) Status() PayoutStatus         { return p.status }
-func (p *Payout) RequestedAt() time.Time       { return p.requestedAt }
-func (p *Payout) ApprovedAt() *time.Time       { return p.approvedAt }
-func (p *Payout) ProcessedAt() *time.Time      { return p.processedAt }
-func (p *Payout) CompletedAt() *time.Time      { return p.completedAt }
-func (p *Payout) RejectedAt() *time.Time       { return p.rejectedAt }
-func (p *Payout) PayosTransferID() string      { return p.payosTransferID }
-func (p *Payout) Notes() string                { return p.notes }
-func (p *Payout) RejectionReason() string      { return p.rejectionReason }
-func (p *Payout) BankAccount() BankAccount     { return p.bankAccount }
-func (p *Payout) ApprovedBy() string           { return p.approvedBy }
-func (p *Payout) RejectedBy() string           { return p.rejectedBy }
-func (p *Payout) Version() int                 { return p.version }
-func (p *Payout) CreatedAt() time.Time         { return p.createdAt }
-func (p *Payout) UpdatedAt() time.Time         { return p.updatedAt }
+func (p *Payout) ID() string               { return p.id }
+func (p *Payout) VendorID() string         { return p.vendorID }
+func (p *Payout) PaymentID() string        { return p.paymentID }
+func (p *Payout) ScheduleID() string       { return p.scheduleID }
+func (p *Payout) Amount() int              { return p.amount }
+func (p *Payout) Status() PayoutStatus     { return p.status }
+func (p *Payout) RequestedAt() time.Time   { return p.requestedAt }
+func (p *Payout) ProcessedAt() *time.Time  { return p.processedAt }
+func (p *Payout) CompletedAt() *time.Time  { return p.completedAt }
+func (p *Payout) PayosTransferID() string  { return p.payosTransferID }
+func (p *Payout) Notes() string            { return p.notes }
+func (p *Payout) FailureReason() string    { return p.failureReason }
+func (p *Payout) BankAccount() BankAccount { return p.bankAccount }
+func (p *Payout) Version() int             { return p.version }
+func (p *Payout) CreatedAt() time.Time     { return p.createdAt }
+func (p *Payout) UpdatedAt() time.Time     { return p.updatedAt }
 
 // Entity interface implementation
 func (p *Payout) GetID() string          { return p.id }

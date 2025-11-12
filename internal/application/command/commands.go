@@ -197,6 +197,15 @@ type DeleteVendor struct {
 	VendorID string `json:"vendor_id"`
 }
 
+// UpdateVendorBankAccount represents a command to update vendor's bank account
+type UpdateVendorBankAccount struct {
+	VendorID      string `json:"vendor_id"`
+	BankName      string `json:"bank_name"`
+	AccountNumber string `json:"account_number"`
+	AccountName   string `json:"account_name"`
+	BankBranch    string `json:"bank_branch"`
+}
+
 // ============================================
 // Service Commands (Vendor Services)
 // ============================================

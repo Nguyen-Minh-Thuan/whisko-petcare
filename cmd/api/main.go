@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -346,6 +347,7 @@ func main() {
 	updateVendorHandler := command.NewUpdateVendorWithUoWHandler(uowFactory, eventBus)
 	deleteVendorHandler := command.NewDeleteVendorWithUoWHandler(uowFactory, eventBus)
 	updateVendorImageHandler := command.NewUpdateVendorImageWithUoWHandler(uowFactory, eventBus)
+	updateVendorBankHandler := command.NewUpdateVendorBankAccountWithUoWHandler(uowFactory, eventBus)
 
 	// Initialize vendor query handlers
 	getVendorHandler := query.NewGetVendorHandler(vendorProjection)
@@ -415,6 +417,7 @@ func main() {
 		updateVendorHandler,
 		deleteVendorHandler,
 		updateVendorImageHandler,
+		updateVendorBankHandler,
 		getVendorHandler,
 		listVendorsHandler,
 	)
@@ -696,9 +699,19 @@ func main() {
 	})
 
 	mux.HandleFunc("/vendors/", func(w http.ResponseWriter, r *http.Request) {
+		// Debug routing
+		fmt.Printf("\n🔀 ROUTER: Path=%s, Method=%s\n", r.URL.Path, r.Method)
+		
 		// Check for /vendors/{vendorID}/image
 		if strings.Contains(r.URL.Path, "/image") && r.Method == http.MethodPut {
+			fmt.Printf("✅ ROUTER: Matched /image route\n")
 			vendorController.UpdateVendorImage(w, r)
+			return
+		}
+		// Check for /vendors/{vendorID}/bank-account
+		if strings.Contains(r.URL.Path, "/bank-account") && r.Method == http.MethodPut {
+			fmt.Printf("✅ ROUTER: Matched /bank-account route\n")
+			vendorController.UpdateBankAccount(w, r)
 			return
 		}
 		// Check for /vendors/{vendorID}/services

@@ -9,12 +9,13 @@ import (
 
 // VendorService handles vendor operations
 type VendorService struct {
-	createVendorHandler       *command.CreateVendorWithUoWHandler
-	updateVendorHandler       *command.UpdateVendorWithUoWHandler
-	deleteVendorHandler       *command.DeleteVendorWithUoWHandler
-	updateVendorImageHandler  *command.UpdateVendorImageWithUoWHandler
-	getVendorHandler          *query.GetVendorHandler
-	listVendorsHandler        *query.ListVendorsHandler
+	createVendorHandler        *command.CreateVendorWithUoWHandler
+	updateVendorHandler        *command.UpdateVendorWithUoWHandler
+	deleteVendorHandler        *command.DeleteVendorWithUoWHandler
+	updateVendorImageHandler   *command.UpdateVendorImageWithUoWHandler
+	updateVendorBankHandler    *command.UpdateVendorBankAccountWithUoWHandler
+	getVendorHandler           *query.GetVendorHandler
+	listVendorsHandler         *query.ListVendorsHandler
 }
 
 // NewVendorService creates a new vendor service
@@ -23,6 +24,7 @@ func NewVendorService(
 	updateVendorHandler *command.UpdateVendorWithUoWHandler,
 	deleteVendorHandler *command.DeleteVendorWithUoWHandler,
 	updateVendorImageHandler *command.UpdateVendorImageWithUoWHandler,
+	updateVendorBankHandler *command.UpdateVendorBankAccountWithUoWHandler,
 	getVendorHandler *query.GetVendorHandler,
 	listVendorsHandler *query.ListVendorsHandler,
 ) *VendorService {
@@ -31,6 +33,7 @@ func NewVendorService(
 		updateVendorHandler:      updateVendorHandler,
 		deleteVendorHandler:      deleteVendorHandler,
 		updateVendorImageHandler: updateVendorImageHandler,
+		updateVendorBankHandler:  updateVendorBankHandler,
 		getVendorHandler:         getVendorHandler,
 		listVendorsHandler:       listVendorsHandler,
 	}
@@ -64,4 +67,9 @@ func (s *VendorService) ListVendors(ctx context.Context, offset, limit int) ([]i
 // UpdateVendorImage updates a vendor's image URL
 func (s *VendorService) UpdateVendorImage(ctx context.Context, cmd command.UpdateVendorImage) error {
 	return s.updateVendorImageHandler.Handle(ctx, &cmd)
+}
+
+// UpdateVendorBankAccount updates a vendor's bank account information
+func (s *VendorService) UpdateVendorBankAccount(ctx context.Context, cmd command.UpdateVendorBankAccount) error {
+	return s.updateVendorBankHandler.Handle(ctx, &cmd)
 }

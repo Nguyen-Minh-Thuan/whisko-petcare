@@ -62,9 +62,20 @@ func (r *MongoVendorRepository) Save(ctx context.Context, vendor *aggregate.Vend
 		"email":      vendor.Email(),
 		"phone":      vendor.Phone(),
 		"address":    vendor.Address(),
+		"image_url":  vendor.ImageUrl(),
 		"is_active":  vendor.IsActive(),
 		"created_at": vendor.CreatedAt(),
 		"updated_at": vendor.UpdatedAt(),
+	}
+
+	// Add bank account if present
+	if bankAccount := vendor.GetBankAccount(); bankAccount != nil {
+		entityDoc["bank_account"] = bson.M{
+			"bank_name":      bankAccount.BankName,
+			"account_number": bankAccount.AccountNumber,
+			"account_name":   bankAccount.AccountName,
+			"bank_branch":    bankAccount.BankBranch,
+		}
 	}
 
 	// Upsert entity document to MongoDB
@@ -119,6 +130,17 @@ func (r *MongoVendorRepository) GetByID(ctx context.Context, id string) (*aggreg
 		return nil, fmt.Errorf("failed to get vendor from MongoDB: %w", err)
 	}
 
+	// Extract bank account if present
+	var bankAccount *aggregate.VendorBankAccount
+	if bankAccountDoc, ok := result["bank_account"].(bson.M); ok {
+		bankAccount = &aggregate.VendorBankAccount{
+			BankName:      getVendorString(bankAccountDoc, "bank_name"),
+			AccountNumber: getVendorString(bankAccountDoc, "account_number"),
+			AccountName:   getVendorString(bankAccountDoc, "account_name"),
+			BankBranch:    getVendorString(bankAccountDoc, "bank_branch"),
+		}
+	}
+
 	// Reconstruct vendor from database state WITHOUT raising events
 	vendor := aggregate.ReconstructVendor(
 		getVendorString(result, "_id"),
@@ -131,6 +153,7 @@ func (r *MongoVendorRepository) GetByID(ctx context.Context, id string) (*aggreg
 		getVendorTime(result, "created_at"),
 		getVendorTime(result, "updated_at"),
 		getVendorBool(result, "is_active"),
+		bankAccount,
 	)
 
 	return vendor, nil
