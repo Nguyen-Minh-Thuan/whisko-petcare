@@ -340,3 +340,16 @@ type UpdateServiceImage struct {
 	ServiceID string `json:"service_id"`
 	ImageUrl  string `json:"image_url"`
 }
+
+// ============================================
+// Payout Commands
+// ============================================
+
+// RequestPayout represents a command to create a new payout request
+type RequestPayout struct {
+	VendorID   string `json:"vendor_id"`
+	PaymentID  string `json:"payment_id"`
+	ScheduleID string `json:"schedule_id"`
+	Amount     int    `json:"amount"`
+	Notes      string `json:"notes,omitempty"`
+}

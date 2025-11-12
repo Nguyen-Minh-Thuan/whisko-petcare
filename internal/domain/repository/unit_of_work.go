@@ -19,6 +19,7 @@ type UnitOfWork interface {
 	ServiceRepository() ServiceRepository
 	ScheduleRepository() ScheduleRepository
 	VendorStaffRepository() VendorStaffRepository
+	PayoutRepository() PayoutRepository
 
 	// Generic repository factory
 	Repository(entityType string) interface{}

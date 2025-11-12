@@ -27,6 +27,7 @@ type MongoUnitOfWork struct {
 	serviceRepo      repository.ServiceRepository
 	scheduleRepo     repository.ScheduleRepository
 	vendorStaffRepo  repository.VendorStaffRepository
+	payoutRepo       repository.PayoutRepository
 }
 
 // NewMongoUnitOfWork creates a new MongoDB unit of work
@@ -220,6 +221,23 @@ func (uow *MongoUnitOfWork) VendorStaffRepository() repository.VendorStaffReposi
 	}
 
 	return uow.vendorStaffRepo
+}
+
+// PayoutRepository returns the payout repository
+func (uow *MongoUnitOfWork) PayoutRepository() repository.PayoutRepository {
+	uow.mutex.Lock()
+	defer uow.mutex.Unlock()
+
+	if uow.payoutRepo == nil {
+		uow.payoutRepo = NewMongoPayoutRepository(uow.database)
+		if uow.inTransaction {
+			if transactionalRepo, ok := uow.payoutRepo.(repository.TransactionalRepository); ok {
+				transactionalRepo.SetTransaction(uow.session)
+			}
+		}
+	}
+
+	return uow.payoutRepo
 }
 
 // Repository returns a generic repository for the specified entity type
