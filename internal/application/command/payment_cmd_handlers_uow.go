@@ -296,6 +296,7 @@ type ConfirmPaymentWithUoWHandler struct {
 	uowFactory              repository.UnitOfWorkFactory
 	eventBus                bus.EventBus
 	payOSService            *payos.Service
+	payoutService           *payos.PayoutService
 	createScheduleHandler   *CreateScheduleWithUoWHandler
 }
 
@@ -304,12 +305,14 @@ func NewConfirmPaymentWithUoWHandler(
 	uowFactory repository.UnitOfWorkFactory,
 	eventBus bus.EventBus,
 	payOSService *payos.Service,
+	payoutService *payos.PayoutService,
 	createScheduleHandler *CreateScheduleWithUoWHandler,
 ) *ConfirmPaymentWithUoWHandler {
 	return &ConfirmPaymentWithUoWHandler{
 		uowFactory:              uowFactory,
 		eventBus:                eventBus,
 		payOSService:            payOSService,
+		payoutService:           payoutService,
 		createScheduleHandler:   createScheduleHandler,
 	}
 }
@@ -407,6 +410,132 @@ func (h *ConfirmPaymentWithUoWHandler) Handle(ctx context.Context, cmd *ConfirmP
 	// Commit transaction
 	if err := uow.Commit(ctx); err != nil {
 		return errors.NewInternalError(fmt.Sprintf("failed to commit transaction: %v", err))
+	}
+
+	// CREATE PAYOUT BEFORE SCHEDULE: If payment was successful, create and process payout to vendor
+	if paymentWasPaid && h.payoutService != nil {
+		fmt.Printf("========================================\n")
+		fmt.Printf("💰 Auto-creating and processing payout for payment ID: %s\n", payment.ID())
+		
+		// Get vendor information to check bank account
+		uow2 := h.uowFactory.CreateUnitOfWork()
+		defer uow2.Close()
+		
+		if err := uow2.Begin(ctx); err != nil {
+			fmt.Printf("❌ Failed to begin payout transaction: %v\n", err)
+		} else {
+			vendorRepo := uow2.VendorRepository()
+			vendor, err := vendorRepo.GetByID(ctx, payment.VendorID())
+			if err != nil {
+				fmt.Printf("❌ Failed to get vendor for payout: %v\n", err)
+				_ = uow2.Rollback(ctx)
+			} else if !vendor.HasBankAccount() {
+				fmt.Printf("⚠️ Vendor does not have bank account - payout creation skipped\n")
+				_ = uow2.Rollback(ctx)
+			} else {
+				// Vendor has bank account - create payout
+				vendorBankAccount := vendor.GetBankAccount()
+				payoutAmount := payment.Amount()
+				
+				// Generate temporary schedule ID for payout (will be updated later)
+				tempScheduleID := "PENDING"
+				payoutID := fmt.Sprintf("PAYOUT-%d", time.Now().UnixNano())
+				
+				fmt.Printf("💰 Creating payout: ID=%s, Amount=%d, VendorID=%s, PaymentID=%s\n",
+					payoutID, payoutAmount, payment.VendorID(), payment.ID())
+				
+				// Create payout aggregate
+				bankAccount := aggregate.BankAccount{
+					BankName:      vendorBankAccount.BankName,
+					AccountNumber: vendorBankAccount.AccountNumber,
+					AccountName:   vendorBankAccount.AccountName,
+					BankBranch:    vendorBankAccount.BankBranch,
+				}
+				
+				payout, err := aggregate.NewPayout(
+					payoutID,
+					payment.VendorID(),
+					payment.ID(),
+					tempScheduleID,
+					payoutAmount,
+					bankAccount,
+					fmt.Sprintf("Payout for payment %s", payment.ID()),
+				)
+				
+				if err != nil {
+					fmt.Printf("❌ Failed to create payout: %v\n", err)
+					_ = uow2.Rollback(ctx)
+				} else {
+					// Save payout in PENDING status first
+					payoutRepo := uow2.PayoutRepository()
+					if err := payoutRepo.Save(ctx, payout); err != nil {
+						fmt.Printf("❌ Failed to save payout: %v\n", err)
+						_ = uow2.Rollback(ctx)
+					} else {
+						// Commit payout creation
+						if err := uow2.Commit(ctx); err != nil {
+							fmt.Printf("❌ Failed to commit payout: %v\n", err)
+						} else {
+							fmt.Printf("✅ Payout saved with status: %s\n", payout.Status())
+							
+							// Now process the actual bank transfer
+							fmt.Printf("🏦 Processing bank transfer to %s - %s\n", 
+								vendorBankAccount.BankName, vendorBankAccount.AccountNumber)
+							
+							transferInfo, transferErr := h.payoutService.ProcessPayout(
+								ctx,
+								payout.ID(),
+								vendorBankAccount.BankName,
+								vendorBankAccount.AccountNumber,
+								vendorBankAccount.AccountName,
+								payoutAmount,
+								fmt.Sprintf("Payment for booking - Order %d", cmd.OrderCode),
+							)
+							
+							// Update payout status based on transfer result
+							uow3 := h.uowFactory.CreateUnitOfWork()
+							defer uow3.Close()
+							
+							if err := uow3.Begin(ctx); err == nil {
+								payoutRepo2 := uow3.PayoutRepository()
+								payout2, err := payoutRepo2.GetByID(ctx, payoutID)
+								
+								if err == nil {
+									if transferErr != nil {
+										fmt.Printf("❌ Bank transfer failed: %v\n", transferErr)
+										_ = payout2.MarkAsFailed(transferErr.Error())
+									} else if transferInfo.Status == "SUCCEEDED" {
+										fmt.Printf("✅ Bank transfer SUCCEEDED! Transfer ID: %s\n", transferInfo.TransferID)
+										_ = payout2.MarkAsProcessing(transferInfo.TransferID)
+										_ = payout2.MarkAsCompleted()
+									} else if transferInfo.Status == "FAILED" {
+										errorMsg := "Transfer failed"
+										if transferInfo.ErrorMessage != "" {
+											errorMsg = transferInfo.ErrorMessage
+										}
+										fmt.Printf("❌ Transfer failed: %s\n", errorMsg)
+										_ = payout2.MarkAsFailed(errorMsg)
+									} else {
+										fmt.Printf("⏳ Transfer is PROCESSING (status: %s) - marking as processing\n", transferInfo.Status)
+										if transferInfo.TransferID != "" {
+											_ = payout2.MarkAsProcessing(transferInfo.TransferID)
+										} else {
+											_ = payout2.MarkAsProcessing("PROCESSING")
+										}
+									}
+									
+									_ = payoutRepo2.Save(ctx, payout2)
+									_ = uow3.Commit(ctx)
+									
+									fmt.Printf("✅ Payout final status: %s\n", payout2.Status())
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		fmt.Printf("========================================\n")
 	}
 
 	// AUTO-CREATE SCHEDULE: If payment was successful, automatically create a schedule

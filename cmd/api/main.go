@@ -90,6 +90,17 @@ func main() {
 		log.Fatal("Failed to initialize PayOS service:", err)
 	}
 
+	// Initialize PayOS Payout Service for real bank transfers to vendors
+	payoutConfig := &payos.PayoutConfig{
+		ClientID:    getEnv("PAYOS_PAYOUT_CLIENT_ID", ""),
+		APIKey:      getEnv("PAYOS_PAYOUT_API_KEY", ""),
+		ChecksumKey: getEnv("PAYOS_PAYOUT_CHECKSUM_KEY", ""),
+		BaseURL:     "https://api-merchant.payos.vn",
+		WebhookURL:  getEnv("PAYOS_PAYOUT_WEBHOOK_URL", "https://api.whisko.shop/api/payouts/webhook"),
+	}
+	payoutService := payos.NewPayoutService(payoutConfig)
+	log.Println("✅ PayOS Payout Service initialized for vendor bank transfers")
+
 	// Initialize Cloudinary service
 	var cloudinaryService *cloudinary.Service
 	var cloudinaryHandler *cloudinary.Handler
@@ -320,7 +331,7 @@ func main() {
 	// Initialize payment command handlers with UoW
 	createPaymentHandler := command.NewCreatePaymentWithUoWHandler(uowFactory, eventBus, payOSService)
 	cancelPaymentHandler := command.NewCancelPaymentWithUoWHandler(uowFactory, eventBus, payOSService)
-	confirmPaymentHandler := command.NewConfirmPaymentWithUoWHandler(uowFactory, eventBus, payOSService, createScheduleHandler)
+	confirmPaymentHandler := command.NewConfirmPaymentWithUoWHandler(uowFactory, eventBus, payOSService, payoutService, createScheduleHandler)
 	
 	// Initialize payment query handlers
 	getPaymentHandler := query.NewGetPaymentHandler(paymentProjection)

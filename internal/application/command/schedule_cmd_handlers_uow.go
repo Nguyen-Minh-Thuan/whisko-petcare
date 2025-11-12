@@ -170,87 +170,8 @@ func (h *CreateScheduleWithUoWHandler) Handle(ctx context.Context, cmd *CreateSc
 
 	fmt.Printf("✅ Schedule created successfully: %s\n", schedule.ID())
 
-	// Auto-create payout if vendor has bank account configured
-	fmt.Printf("🔍 Checking if vendor %s has bank account for payout...\n", cmd.VendorID)
-	if vendor.HasBankAccount() {
-		fmt.Printf("✅ Vendor has bank account - Creating payout for schedule %s\n", schedule.ID())
-		
-		// Get payment ID from the schedule
-		paymentID := cmd.PaymentID
-		if paymentID == "" {
-			fmt.Printf("⚠️ No payment ID in schedule command - payout creation skipped\n")
-			return nil
-		}
-
-		// Calculate payout amount (for now, use total amount - in real system, deduct platform fee)
-		payoutAmount := cmd.TotalPrice
-		
-		// Create payout using vendor's bank account
-		vendorBankAccount := vendor.GetBankAccount()
-		if vendorBankAccount == nil {
-			fmt.Printf("⚠️ Vendor bank account is nil - payout creation skipped\n")
-			return nil
-		}
-		
-		// Convert VendorBankAccount to BankAccount
-		bankAccount := aggregate.BankAccount{
-			BankName:      vendorBankAccount.BankName,
-			AccountNumber: vendorBankAccount.AccountNumber,
-			AccountName:   vendorBankAccount.AccountName,
-			BankBranch:    vendorBankAccount.BankBranch,
-		}
-		
-		payoutID := fmt.Sprintf("PAYOUT-%d", time.Now().UnixNano())
-		
-		fmt.Printf("💰 Creating payout: ID=%s, Amount=%d, VendorID=%s, PaymentID=%s, ScheduleID=%s\n",
-			payoutID, payoutAmount, cmd.VendorID, paymentID, schedule.ID())
-		
-		payout, err := aggregate.NewPayout(
-			payoutID,
-			cmd.VendorID,
-			paymentID,
-			schedule.ID(),
-			payoutAmount,
-			bankAccount,
-			fmt.Sprintf("Payout for schedule %s", schedule.ID()),
-		)
-		if err != nil {
-			fmt.Printf("⚠️ Failed to create payout: %v\n", err)
-			return nil // Don't fail the whole operation if payout creation fails
-		}
-
-		// Save payout in a new transaction
-		fmt.Printf("💾 Saving payout to database...\n")
-		uow2 := h.uowFactory.CreateUnitOfWork()
-		defer uow2.Close()
-
-		if err := uow2.Begin(ctx); err != nil {
-			fmt.Printf("⚠️ Failed to begin payout transaction: %v\n", err)
-			return nil // Don't fail the whole operation
-		}
-
-		payoutRepo := uow2.PayoutRepository()
-		if err := payoutRepo.Save(ctx, payout); err != nil {
-			_ = uow2.Rollback(ctx)
-			fmt.Printf("⚠️ Failed to save payout: %v\n", err)
-			return nil // Don't fail the whole operation
-		}
-
-		// Publish payout events
-		payoutEvents := payout.GetUncommittedEvents()
-		if err := h.eventBus.PublishBatch(ctx, payoutEvents); err != nil {
-			fmt.Printf("⚠️ Failed to publish payout events: %v\n", err)
-		}
-
-		if err := uow2.Commit(ctx); err != nil {
-			fmt.Printf("⚠️ Failed to commit payout transaction: %v\n", err)
-			return nil // Don't fail the whole operation
-		}
-
-		fmt.Printf("✅ Payout created successfully: %s (Status: %s)\n", payout.ID(), payout.Status())
-	} else {
-		fmt.Printf("⚠️ Vendor does not have bank account configured - payout creation skipped\n")
-	}
+	// Note: Payout is now created and processed in payment confirmation handler BEFORE schedule creation
+	// This ensures vendors receive payment immediately after user pays
 
 	return nil
 }
