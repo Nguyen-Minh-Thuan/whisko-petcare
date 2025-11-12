@@ -459,7 +459,7 @@ func (h *ConfirmPaymentWithUoWHandler) Handle(ctx context.Context, cmd *ConfirmP
 					tempScheduleID,
 					payoutAmount,
 					bankAccount,
-					fmt.Sprintf("Payout for payment %s", payment.ID()),
+					"Pet care service", // Max 25 chars for PayOS
 				)
 				
 				if err != nil {
@@ -489,7 +489,7 @@ func (h *ConfirmPaymentWithUoWHandler) Handle(ctx context.Context, cmd *ConfirmP
 								vendorBankAccount.AccountNumber,
 								vendorBankAccount.AccountName,
 								payoutAmount,
-								fmt.Sprintf("Payment for booking - Order %d", cmd.OrderCode),
+								"Pet care service", // Max 25 chars for PayOS
 							)
 							
 							// Update payout status based on transfer result
