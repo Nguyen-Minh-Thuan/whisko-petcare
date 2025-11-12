@@ -150,9 +150,9 @@ func (s *PayoutService) ProcessPayout(ctx context.Context, payoutID, vendorBankN
 		return nil, fmt.Errorf("unsupported bank: %s. Please use one of the supported Vietnamese banks", vendorBankName)
 	}
 
-	// Validate amount (PayOS typically has min/max limits)
-	if amount < 10000 { // Min 10,000 VND
-		return nil, fmt.Errorf("payout amount must be at least 10,000 VND")
+	// Validate amount (PayOS limits)
+	if amount <= 0 {
+		return nil, fmt.Errorf("payout amount must be greater than 0")
 	}
 	if amount > 500000000 { // Max 500M VND
 		return nil, fmt.Errorf("payout amount must not exceed 500,000,000 VND")

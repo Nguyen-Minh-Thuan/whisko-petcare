@@ -60,11 +60,11 @@ func NewPayout(payoutID, vendorID, paymentID, scheduleID string, amount int, ban
 	if scheduleID == "" {
 		return nil, fmt.Errorf("schedule ID cannot be empty")
 	}
-	if amount < 100000 {
-		return nil, fmt.Errorf("minimum payout amount is 100,000 VND")
+	if amount <= 0 {
+		return nil, fmt.Errorf("payout amount must be greater than 0")
 	}
-	if amount > 50000000 {
-		return nil, fmt.Errorf("maximum payout amount is 50,000,000 VND per transaction")
+	if amount > 500000000 {
+		return nil, fmt.Errorf("maximum payout amount is 500,000,000 VND per transaction")
 	}
 	if bankAccount.BankName == "" || bankAccount.AccountNumber == "" || bankAccount.AccountName == "" {
 		return nil, fmt.Errorf("complete bank account information is required")
