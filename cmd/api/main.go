@@ -499,6 +499,7 @@ func main() {
 	serviceController := httpHandler.NewHTTPServiceController(serviceService, cloudinaryService)
 	scheduleController := httpHandler.NewScheduleController(scheduleService)
 	vendorStaffController := httpHandler.NewVendorStaffController(vendorStaffService)
+	payoutController := httpHandler.NewHTTPPayoutController(uowFactory, payoutService)
 
 	// Setup HTTP routes
 	mux := http.NewServeMux()
@@ -631,6 +632,58 @@ func main() {
 				w.WriteHeader(http.StatusMethodNotAllowed)
 			}
 		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Payout routes - Order matters! More specific routes first
+	// Webhook endpoint (no auth required - PayOS will call this)
+	mux.HandleFunc("/payouts/webhook", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			payoutController.WebhookHandler(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Process payout - POST /payouts/{id}/process
+	mux.HandleFunc("/payouts/", func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+
+		// Check for /payouts/vendor/{vendorId}
+		if strings.Contains(path, "/vendor/") {
+			if r.Method == http.MethodGet {
+				payoutController.ListPayoutsByVendor(w, r)
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+			return
+		}
+
+		// Check for /payouts/status/{status}
+		if strings.Contains(path, "/status/") {
+			if r.Method == http.MethodGet {
+				payoutController.ListPayoutsByStatus(w, r)
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+			return
+		}
+
+		// Check for /payouts/{id}/process
+		if strings.HasSuffix(path, "/process") {
+			if r.Method == http.MethodPost {
+				payoutController.ProcessPayout(w, r)
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+			return
+		}
+
+		// Default: GET /payouts/{id}
+		if r.Method == http.MethodGet {
+			payoutController.GetPayoutByID(w, r)
+		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
