@@ -130,8 +130,9 @@ func ReconstructPayout(
 
 // MarkAsProcessing marks payout as being processed by PayOS (automatic)
 func (p *Payout) MarkAsProcessing(payosTransferID string) error {
-	if p.status != PayoutStatusPending {
-		return fmt.Errorf("only pending payouts can be processed (current status: %s)", p.status)
+	// Allow processing for PENDING or FAILED (retry) payouts
+	if p.status != PayoutStatusPending && p.status != PayoutStatusFailed {
+		return fmt.Errorf("only pending or failed payouts can be processed (current status: %s)", p.status)
 	}
 	if payosTransferID == "" {
 		return fmt.Errorf("PayOS transfer ID is required")
@@ -184,9 +185,9 @@ func (p *Payout) MarkAsCompleted() error {
 
 // MarkAsFailed marks payout as failed (from webhook or error)
 func (p *Payout) MarkAsFailed(reason string) error {
-	// allow failing when processing or pending (e.g., immediate failure)
-	if p.status != PayoutStatusProcessing && p.status != PayoutStatusPending {
-		return fmt.Errorf("only processing or pending payouts can be failed (current status: %s)", p.status)
+	// Allow failing when processing, pending, or already failed (update failure reason on retry)
+	if p.status != PayoutStatusProcessing && p.status != PayoutStatusPending && p.status != PayoutStatusFailed {
+		return fmt.Errorf("only processing, pending, or failed payouts can be failed (current status: %s)", p.status)
 	}
 
 	now := time.Now()
