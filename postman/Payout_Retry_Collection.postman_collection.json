@@ -1,0 +1,210 @@
+{
+	"info": {
+		"_postman_id": "payout-retry-collection",
+		"name": "Payout Retry - Quick Test",
+		"description": "Quick collection to retry failed payouts after signature fix",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Retry Failed Payout",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "https://api.whisko.shop/payouts/PAYOUT-1762977243170113595/process",
+					"protocol": "https",
+					"host": [
+						"api",
+						"whisko",
+						"shop"
+					],
+					"path": [
+						"payouts",
+						"PAYOUT-1762977243170113595",
+						"process"
+					]
+				},
+				"description": "Retry processing the failed payout with the fixed signature format"
+			},
+			"response": []
+		},
+		{
+			"name": "Get Payout Details",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.whisko.shop/payouts/PAYOUT-1762977243170113595",
+					"protocol": "https",
+					"host": [
+						"api",
+						"whisko",
+						"shop"
+					],
+					"path": [
+						"payouts",
+						"PAYOUT-1762977243170113595"
+					]
+				},
+				"description": "Check the current status and details of the payout"
+			},
+			"response": []
+		},
+		{
+			"name": "List Vendor Payouts",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.whisko.shop/payouts/vendor/69f50647-4055-4189-8b54-71932e929f88?offset=0&limit=10",
+					"protocol": "https",
+					"host": [
+						"api",
+						"whisko",
+						"shop"
+					],
+					"path": [
+						"payouts",
+						"vendor",
+						"69f50647-4055-4189-8b54-71932e929f88"
+					],
+					"query": [
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "limit",
+							"value": "10"
+						}
+					]
+				},
+				"description": "Get all payouts for the vendor to see both failed and successful ones"
+			},
+			"response": []
+		},
+		{
+			"name": "List Failed Payouts",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.whisko.shop/payouts/status/FAILED?offset=0&limit=10",
+					"protocol": "https",
+					"host": [
+						"api",
+						"whisko",
+						"shop"
+					],
+					"path": [
+						"payouts",
+						"status",
+						"FAILED"
+					],
+					"query": [
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "limit",
+							"value": "10"
+						}
+					]
+				},
+				"description": "List all failed payouts in the system"
+			},
+			"response": []
+		},
+		{
+			"name": "List Processing Payouts",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.whisko.shop/payouts/status/PROCESSING?offset=0&limit=10",
+					"protocol": "https",
+					"host": [
+						"api",
+						"whisko",
+						"shop"
+					],
+					"path": [
+						"payouts",
+						"status",
+						"PROCESSING"
+					],
+					"query": [
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "limit",
+							"value": "10"
+						}
+					]
+				},
+				"description": "List all payouts currently being processed"
+			},
+			"response": []
+		},
+		{
+			"name": "List Completed Payouts",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.whisko.shop/payouts/status/COMPLETED?offset=0&limit=10",
+					"protocol": "https",
+					"host": [
+						"api",
+						"whisko",
+						"shop"
+					],
+					"path": [
+						"payouts",
+						"status",
+						"COMPLETED"
+					],
+					"query": [
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "limit",
+							"value": "10"
+						}
+					]
+				},
+				"description": "List all successfully completed payouts"
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://api.whisko.shop",
+			"type": "string"
+		},
+		{
+			"key": "failed_payout_id",
+			"value": "PAYOUT-1762977243170113595",
+			"type": "string"
+		},
+		{
+			"key": "vendor_id",
+			"value": "69f50647-4055-4189-8b54-71932e929f88",
+			"type": "string"
+		}
+	]
+}

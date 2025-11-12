@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -28,13 +29,17 @@ func NewHTTPPayoutController(
 	}
 }
 
-// ProcessPayout handles POST /api/payouts/{id}/process
+// ProcessPayout handles POST /payouts/{id}/process
 // This endpoint initiates a real bank transfer for the payout
 func (c *HTTPPayoutController) ProcessPayout(w http.ResponseWriter, r *http.Request) {
 	// Extract payout ID from URL path
-	path := strings.TrimPrefix(r.URL.Path, "/api/payouts/")
+	// The route is registered as /payouts/ not /api/payouts/
+	fmt.Printf("🔍 ProcessPayout - Original URL Path: %s\n", r.URL.Path)
+	path := strings.TrimPrefix(r.URL.Path, "/payouts/")
+	fmt.Printf("🔍 ProcessPayout - After TrimPrefix: %s\n", path)
 	path = strings.TrimSuffix(path, "/process")
 	payoutID := path
+	fmt.Printf("🔍 ProcessPayout - Final Payout ID: %s\n", payoutID)
 
 	if payoutID == "" {
 		response.SendBadRequest(w, r, "Payout ID is required")
@@ -156,8 +161,11 @@ func (c *HTTPPayoutController) ProcessPayout(w http.ResponseWriter, r *http.Requ
 // GetPayoutByID handles GET /api/payouts/{id}
 func (c *HTTPPayoutController) GetPayoutByID(w http.ResponseWriter, r *http.Request) {
 	// Extract payout ID from URL path
-	path := strings.TrimPrefix(r.URL.Path, "/api/payouts/")
+	// The route is registered as /payouts/ not /api/payouts/
+	fmt.Printf("🔍 GetPayoutByID - Original URL Path: %s\n", r.URL.Path)
+	path := strings.TrimPrefix(r.URL.Path, "/payouts/")
 	payoutID := path
+	fmt.Printf("🔍 GetPayoutByID - Extracted Payout ID: %s\n", payoutID)
 
 	if payoutID == "" {
 		response.SendBadRequest(w, r, "Payout ID is required")
@@ -205,10 +213,10 @@ func (c *HTTPPayoutController) GetPayoutByID(w http.ResponseWriter, r *http.Requ
 	})
 }
 
-// ListPayoutsByVendor handles GET /api/payouts/vendor/{vendorId}
+// ListPayoutsByVendor handles GET /payouts/vendor/{vendorId}
 func (c *HTTPPayoutController) ListPayoutsByVendor(w http.ResponseWriter, r *http.Request) {
 	// Extract vendor ID from URL path
-	path := strings.TrimPrefix(r.URL.Path, "/api/payouts/vendor/")
+	path := strings.TrimPrefix(r.URL.Path, "/payouts/vendor/")
 	vendorID := path
 
 	if vendorID == "" {
@@ -249,10 +257,10 @@ func (c *HTTPPayoutController) ListPayoutsByVendor(w http.ResponseWriter, r *htt
 	})
 }
 
-// ListPayoutsByStatus handles GET /api/payouts/status/{status}
+// ListPayoutsByStatus handles GET /payouts/status/{status}
 func (c *HTTPPayoutController) ListPayoutsByStatus(w http.ResponseWriter, r *http.Request) {
 	// Extract status from URL path
-	path := strings.TrimPrefix(r.URL.Path, "/api/payouts/status/")
+	path := strings.TrimPrefix(r.URL.Path, "/payouts/status/")
 	status := strings.ToUpper(path)
 
 	if status == "" {
