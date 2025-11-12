@@ -103,6 +103,31 @@ func NewPayout(payoutID, vendorID, paymentID, scheduleID string, amount int, ban
 	return payout, nil
 }
 
+// ReconstructPayout reconstructs a payout from database state (for MongoDB repository)
+func ReconstructPayout(
+	id, vendorID, paymentID, scheduleID string,
+	amount int,
+	bankAccount BankAccount,
+	status, notes, failureReason string,
+	version int,
+	createdAt, updatedAt time.Time,
+) *Payout {
+	return &Payout{
+		id:            id,
+		vendorID:      vendorID,
+		paymentID:     paymentID,
+		scheduleID:    scheduleID,
+		amount:        amount,
+		status:        PayoutStatus(status),
+		bankAccount:   bankAccount,
+		notes:         notes,
+		failureReason: failureReason,
+		version:       version,
+		createdAt:     createdAt,
+		updatedAt:     updatedAt,
+	}
+}
+
 // MarkAsProcessing marks payout as being processed by PayOS (automatic)
 func (p *Payout) MarkAsProcessing(payosTransferID string) error {
 	if p.status != PayoutStatusPending {

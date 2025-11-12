@@ -249,6 +249,8 @@ type CreateSchedule struct {
 	BookingUser   BookingUserData     `json:"booking_user"`
 	BookedVendor  BookedVendorData    `json:"booked_vendor"`
 	AssignedPet   AssignedPetData     `json:"assigned_pet"`
+	PaymentID     string              `json:"payment_id,omitempty"`      // For auto-creating payout
+	TotalPrice    int                 `json:"total_price,omitempty"`     // For auto-creating payout
 }
 
 type BookingUserData struct {

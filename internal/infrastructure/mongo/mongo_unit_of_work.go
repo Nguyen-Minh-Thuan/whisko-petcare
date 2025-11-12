@@ -27,7 +27,7 @@ type MongoUnitOfWork struct {
 	serviceRepo      repository.ServiceRepository
 	scheduleRepo     repository.ScheduleRepository
 	vendorStaffRepo  repository.VendorStaffRepository
-	// payoutRepo       repository.PayoutRepository  // TODO: Implement MongoDB payout repository
+	payoutRepo       repository.PayoutRepository
 }
 
 // NewMongoUnitOfWork creates a new MongoDB unit of work
@@ -224,9 +224,20 @@ func (uow *MongoUnitOfWork) VendorStaffRepository() repository.VendorStaffReposi
 }
 
 // PayoutRepository returns the payout repository
-// TODO: Implement MongoDB payout repository
 func (uow *MongoUnitOfWork) PayoutRepository() repository.PayoutRepository {
-	panic("PayoutRepository not yet implemented - MongoDB payout repository needs to be created")
+	uow.mutex.Lock()
+	defer uow.mutex.Unlock()
+
+	if uow.payoutRepo == nil {
+		uow.payoutRepo = NewMongoPayoutRepository(uow.database)
+		if uow.inTransaction {
+			if transactionalRepo, ok := uow.payoutRepo.(repository.TransactionalRepository); ok {
+				transactionalRepo.SetTransaction(uow.session)
+			}
+		}
+	}
+
+	return uow.payoutRepo
 }
 
 // Repository returns a generic repository for the specified entity type
@@ -334,6 +345,12 @@ func (uow *MongoUnitOfWork) setTransactionForRepositories() {
 		}
 	}
 
+	if uow.payoutRepo != nil {
+		if transactionalRepo, ok := uow.payoutRepo.(repository.TransactionalRepository); ok {
+			transactionalRepo.SetTransaction(uow.session)
+		}
+	}
+
 	// Set transaction for other repositories in the map
 	for _, repo := range uow.repositories {
 		if transactionalRepo, ok := repo.(repository.TransactionalRepository); ok {
@@ -382,6 +399,12 @@ func (uow *MongoUnitOfWork) clearTransactionFromRepositories() {
 
 	if uow.vendorStaffRepo != nil {
 		if transactionalRepo, ok := uow.vendorStaffRepo.(repository.TransactionalRepository); ok {
+			transactionalRepo.SetTransaction(nil)
+		}
+	}
+
+	if uow.payoutRepo != nil {
+		if transactionalRepo, ok := uow.payoutRepo.(repository.TransactionalRepository); ok {
 			transactionalRepo.SetTransaction(nil)
 		}
 	}

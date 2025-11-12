@@ -420,12 +420,14 @@ func (h *ConfirmPaymentWithUoWHandler) Handle(ctx context.Context, cmd *ConfirmP
 		fmt.Printf("   Time: %s to %s\n", payment.StartTime(), payment.EndTime())
 		
 		scheduleCmd := &CreateSchedule{
-			UserID:    payment.UserID(),
-			VendorID:  payment.VendorID(),
-			PetID:     payment.PetID(),
+			UserID:     payment.UserID(),
+			VendorID:   payment.VendorID(),
+			PetID:      payment.PetID(),
 			ServiceIDs: payment.ServiceIDs(),
-			StartTime: payment.StartTime().Format(time.RFC3339),
-			EndTime:   payment.EndTime().Format(time.RFC3339),
+			StartTime:  payment.StartTime().Format(time.RFC3339),
+			EndTime:    payment.EndTime().Format(time.RFC3339),
+			PaymentID:  payment.ID(),
+			TotalPrice: payment.Amount(),
 		}
 		
 		if err := h.createScheduleHandler.Handle(ctx, scheduleCmd); err != nil {
