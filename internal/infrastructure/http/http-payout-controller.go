@@ -93,21 +93,25 @@ func (c *HTTPPayoutController) ProcessPayout(w http.ResponseWriter, r *http.Requ
 
 	// If transfer initiation failed immediately
 	if transferErr != nil {
+		// Mark payout as failed
 		if err := payout.MarkAsFailed(transferErr.Error()); err != nil {
 			response.SendInternalError(w, r, "Failed to mark payout as failed: "+err.Error())
 			return
 		}
 
+		// Save the failed payout
 		if err := payoutRepo.Save(r.Context(), payout); err != nil {
 			response.SendInternalError(w, r, "Failed to save failed payout: "+err.Error())
 			return
 		}
 
+		// Commit the transaction BEFORE sending response
 		if err := uow.Commit(r.Context()); err != nil {
 			response.SendInternalError(w, r, "Failed to commit failed status: "+err.Error())
 			return
 		}
 
+		// Send error response AFTER successful commit
 		response.SendBadRequest(w, r, "Payout transfer failed: "+transferErr.Error())
 		return
 	}

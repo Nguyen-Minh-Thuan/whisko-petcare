@@ -91,8 +91,9 @@ func (uow *MongoUnitOfWork) Rollback(ctx context.Context) error {
 	uow.mutex.Lock()
 	defer uow.mutex.Unlock()
 
+	// If no active transaction, nothing to rollback (safe to call after commit)
 	if !uow.inTransaction {
-		return fmt.Errorf("no active transaction to rollback")
+		return nil
 	}
 
 	err := uow.session.AbortTransaction(ctx)
