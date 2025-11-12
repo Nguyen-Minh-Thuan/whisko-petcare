@@ -60,6 +60,11 @@ jobs:
             PAYOS_BASE_URL=${{ secrets.PAYOS_BASE_URL }}
             PAYOS_RETURN_URL=${{ secrets.PAYOS_RETURN_URL }}
             PAYOS_CANCEL_URL=${{ secrets.PAYOS_CANCEL_URL }}
+            PAYOS_PAYOUT_CLIENT_ID=${{ secrets.PAYOS_PAYOUT_CLIENT_ID }}
+            PAYOS_PAYOUT_API_KEY=${{ secrets.PAYOS_PAYOUT_API_KEY }}
+            PAYOS_PAYOUT_CHECKSUM_KEY=${{ secrets.PAYOS_PAYOUT_CHECKSUM_KEY }}
+            PAYOS_TRANSFER_API_URL=${{ secrets.PAYOS_TRANSFER_API_URL }}
+            PAYOS_TRANSFER_WEBHOOK_URL=${{ secrets.PAYOS_TRANSFER_WEBHOOK_URL }}
             CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
             CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
             CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}

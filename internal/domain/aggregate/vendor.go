@@ -6,17 +6,26 @@ import (
 	"whisko-petcare/internal/domain/event"
 )
 
+// VendorBankAccount holds vendor's bank information for payouts
+type VendorBankAccount struct {
+	BankName      string
+	AccountNumber string
+	AccountName   string
+	BankBranch    string
+}
+
 type Vendor struct {
-	id        string
-	name      string
-	email     string
-	phone     string
-	address   string
-	imageUrl  string
-	version   int
-	createdAt time.Time
-	updatedAt time.Time
-	isActive  bool
+	id          string
+	name        string
+	email       string
+	phone       string
+	address     string
+	imageUrl    string
+	bankAccount *VendorBankAccount // Optional bank account for payouts
+	version     int
+	createdAt   time.Time
+	updatedAt   time.Time
+	isActive    bool
 
 	uncommittedEvents []event.DomainEvent
 }
@@ -82,7 +91,7 @@ func NewVendorFromHistory(events []event.DomainEvent) (*Vendor, error) {
 
 // ReconstructVendor rebuilds a Vendor aggregate from database state WITHOUT raising events
 func ReconstructVendor(id, name, email, phone, address, imageUrl string,
-	version int, createdAt, updatedAt time.Time, isActive bool) *Vendor {
+	version int, createdAt, updatedAt time.Time, isActive bool, bankAccount *VendorBankAccount) *Vendor {
 	return &Vendor{
 		id:                id,
 		name:              name,
@@ -90,6 +99,7 @@ func ReconstructVendor(id, name, email, phone, address, imageUrl string,
 		phone:             phone,
 		address:           address,
 		imageUrl:          imageUrl,
+		bankAccount:       bankAccount,
 		version:           version,
 		createdAt:         createdAt,
 		updatedAt:         updatedAt,
@@ -130,6 +140,49 @@ func (v *Vendor) UpdateImageUrl(imageUrl string) error {
 		Timestamp:    time.Now(),
 	})
 	return nil
+}
+
+// UpdateBankAccount updates vendor's bank account information for payouts
+func (v *Vendor) UpdateBankAccount(bankName, accountNumber, accountName, bankBranch string) error {
+	if bankName == "" {
+		return fmt.Errorf("bank name cannot be empty")
+	}
+	if accountNumber == "" {
+		return fmt.Errorf("account number cannot be empty")
+	}
+	if accountName == "" {
+		return fmt.Errorf("account name cannot be empty")
+	}
+	
+	v.raiseEvent(&event.VendorBankAccountUpdated{
+		VendorID:      v.id,
+		BankName:      bankName,
+		AccountNumber: accountNumber,
+		AccountName:   accountName,
+		BankBranch:    bankBranch,
+		EventVersion:  v.version + 1,
+		Timestamp:     time.Now(),
+	})
+	return nil
+}
+
+// HasBankAccount checks if vendor has bank account configured
+func (v *Vendor) HasBankAccount() bool {
+	return v.bankAccount != nil && v.bankAccount.AccountNumber != ""
+}
+
+// GetBankAccount returns vendor's bank account (safe copy)
+func (v *Vendor) GetBankAccount() *VendorBankAccount {
+	if v.bankAccount == nil {
+		return nil
+	}
+	// Return copy to prevent external modification
+	return &VendorBankAccount{
+		BankName:      v.bankAccount.BankName,
+		AccountNumber: v.bankAccount.AccountNumber,
+		AccountName:   v.bankAccount.AccountName,
+		BankBranch:    v.bankAccount.BankBranch,
+	}
 }
 
 func (v *Vendor) Delete() error {
@@ -183,6 +236,16 @@ func (v *Vendor) applyEvent(ev event.DomainEvent) error {
 		
 	case *event.VendorImageUpdated:
 		v.imageUrl = e.ImageUrl
+		v.version = e.EventVersion
+		v.updatedAt = e.Timestamp
+		
+	case *event.VendorBankAccountUpdated:
+		v.bankAccount = &VendorBankAccount{
+			BankName:      e.BankName,
+			AccountNumber: e.AccountNumber,
+			AccountName:   e.AccountName,
+			BankBranch:    e.BankBranch,
+		}
 		v.version = e.EventVersion
 		v.updatedAt = e.Timestamp
 		
