@@ -10,6 +10,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -267,40 +270,62 @@ func (s *PayoutService) createPayout(ctx context.Context, req *CreatePayoutReque
 	return &payoutResp, nil
 }
 
-// generateSignature creates HMAC-SHA256 signature for PayOS authentication  
-// PayOS Payout API might use a different signature format than payment API
+// generateSignature creates HMAC-SHA256 signature for PayOS payout API
+// Uses the official PayOS SDK format: sorted query string with URL encoding
+// Reference: github.com/payOSHQ/payos-lib-golang/v2/internal/crypto.CreateSignature
 func (s *PayoutService) generateSignature(requestBody []byte) string {
-	// Try the simple body-only signature (no method, path, or timestamp)
-	// Some APIs just hash the JSON body directly
-	
-	fmt.Printf("🔐 Signature Attempt 1 - Body Only:\n")
-	body := string(requestBody)
-	fmt.Printf("   Body: %s\n", body)
-	
-	h1 := hmac.New(sha256.New, []byte(s.config.ChecksumKey))
-	h1.Write([]byte(body))
-	sig1 := hex.EncodeToString(h1.Sum(nil))
-	fmt.Printf("   Signature: %s\n", sig1)
-	
-	// Also try with method + path + timestamp + body (like payment API)
-	fmt.Printf("🔐 Signature Attempt 2 - Full Format:\n")
-	timestamp := fmt.Sprintf("%d", time.Now().Unix())
-	method := "POST"
-	path := "/v1/payouts"
-	data2 := method + path + timestamp + body
-	fmt.Printf("   Combined: %s\n", data2)
-	
-	h2 := hmac.New(sha256.New, []byte(s.config.ChecksumKey))
-	h2.Write([]byte(data2))
-	sig2 := hex.EncodeToString(h2.Sum(nil))
-	fmt.Printf("   Signature: %s\n", sig2)
-	
-	fmt.Printf("🔑 Checksum Key Length: %d chars\n", len(s.config.ChecksumKey))
-	
-	// For now, use body-only signature (Attempt 1)
-	// If this doesn't work, we'll try the full format
-	fmt.Printf("✅ Using Signature (Body Only): %s\n", sig1)
-	return sig1
+	// Parse JSON body into map
+	var data map[string]interface{}
+	if err := json.Unmarshal(requestBody, &data); err != nil {
+		fmt.Printf("❌ Failed to unmarshal request body: %v\n", err)
+		return ""
+	}
+
+	// Sort keys alphabetically
+	keys := make([]string, 0, len(data))
+	for key := range data {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	// Build query string with URL encoding
+	var pairs []string
+	for _, key := range keys {
+		value := data[key]
+		var stringValue string
+
+		// Convert value to string based on type
+		switch v := value.(type) {
+		case []interface{}, map[string]interface{}:
+			// Arrays and nested objects are JSON stringified
+			jsonBytes, _ := json.Marshal(v)
+			stringValue = string(jsonBytes)
+		case nil:
+			// Null values become empty string
+			stringValue = ""
+		default:
+			// Other types (string, number, bool) convert to string
+			stringValue = fmt.Sprint(v)
+		}
+
+		// URL encode (replace + with %20 for spaces)
+		encodedKey := strings.ReplaceAll(url.QueryEscape(key), "+", "%20")
+		encodedValue := strings.ReplaceAll(url.QueryEscape(stringValue), "+", "%20")
+		pairs = append(pairs, fmt.Sprintf("%s=%s", encodedKey, encodedValue))
+	}
+
+	queryString := strings.Join(pairs, "&")
+
+	// Create HMAC-SHA256 signature
+	h := hmac.New(sha256.New, []byte(s.config.ChecksumKey))
+	h.Write([]byte(queryString))
+	signature := hex.EncodeToString(h.Sum(nil))
+
+	fmt.Printf("🔐 PayOS Signature Generation (Official SDK Format):\n")
+	fmt.Printf("   Query String: %s\n", queryString)
+	fmt.Printf("   Signature: %s\n", signature)
+
+	return signature
 }
 
 // GetPayoutInfo retrieves the status of a payout from PayOS
