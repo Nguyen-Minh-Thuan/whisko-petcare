@@ -267,34 +267,40 @@ func (s *PayoutService) createPayout(ctx context.Context, req *CreatePayoutReque
 	return &payoutResp, nil
 }
 
-// generateSignature creates HMAC-SHA256 signature for PayOS authentication
-// Uses the same format as payment API: method + path + timestamp + body
+// generateSignature creates HMAC-SHA256 signature for PayOS authentication  
+// PayOS Payout API might use a different signature format than payment API
 func (s *PayoutService) generateSignature(requestBody []byte) string {
-	// Create data string for signature: method + path + timestamp + body
+	// Try the simple body-only signature (no method, path, or timestamp)
+	// Some APIs just hash the JSON body directly
+	
+	fmt.Printf("🔐 Signature Attempt 1 - Body Only:\n")
+	body := string(requestBody)
+	fmt.Printf("   Body: %s\n", body)
+	
+	h1 := hmac.New(sha256.New, []byte(s.config.ChecksumKey))
+	h1.Write([]byte(body))
+	sig1 := hex.EncodeToString(h1.Sum(nil))
+	fmt.Printf("   Signature: %s\n", sig1)
+	
+	// Also try with method + path + timestamp + body (like payment API)
+	fmt.Printf("🔐 Signature Attempt 2 - Full Format:\n")
 	timestamp := fmt.Sprintf("%d", time.Now().Unix())
 	method := "POST"
 	path := "/v1/payouts"
-	body := string(requestBody)
+	data2 := method + path + timestamp + body
+	fmt.Printf("   Combined: %s\n", data2)
 	
-	data := method + path + timestamp + body
-
-	// Log signature data for debugging
-	fmt.Printf("🔐 Signature Data Components:\n")
-	fmt.Printf("   Method: %s\n", method)
-	fmt.Printf("   Path: %s\n", path)
-	fmt.Printf("   Timestamp: %s\n", timestamp)
-	fmt.Printf("   Body: %s\n", body)
-	fmt.Printf("   Combined: %s\n", data)
+	h2 := hmac.New(sha256.New, []byte(s.config.ChecksumKey))
+	h2.Write([]byte(data2))
+	sig2 := hex.EncodeToString(h2.Sum(nil))
+	fmt.Printf("   Signature: %s\n", sig2)
+	
 	fmt.Printf("🔑 Checksum Key Length: %d chars\n", len(s.config.ChecksumKey))
-
-	// Create HMAC-SHA256 hash
-	h := hmac.New(sha256.New, []byte(s.config.ChecksumKey))
-	h.Write([]byte(data))
-	signature := hex.EncodeToString(h.Sum(nil))
-
-	fmt.Printf("✅ Generated Signature: %s\n", signature)
-
-	return signature
+	
+	// For now, use body-only signature (Attempt 1)
+	// If this doesn't work, we'll try the full format
+	fmt.Printf("✅ Using Signature (Body Only): %s\n", sig1)
+	return sig1
 }
 
 // GetPayoutInfo retrieves the status of a payout from PayOS
