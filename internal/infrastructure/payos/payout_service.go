@@ -161,6 +161,11 @@ func (s *PayoutService) ProcessPayout(ctx context.Context, payoutID, vendorBankN
 		return nil, fmt.Errorf("payout amount must not exceed 500,000,000 VND")
 	}
 
+	// Truncate description to 25 characters (PayOS requirement)
+	if len(description) > 25 {
+		description = description[:25]
+	}
+
 	// Create payout request
 	payoutReq := CreatePayoutRequest{
 		ReferenceID:     payoutID,
